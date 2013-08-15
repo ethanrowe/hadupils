@@ -1,3 +1,7 @@
+# Vim
+.*.sw[op]
+
+# Ruby
 *.gem
 *.rbc
 .bundle
