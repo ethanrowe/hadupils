@@ -41,4 +41,16 @@ module Hadupils::Assets
     return Jar.new(path) if path[-4..-1] == '.jar'
     return File.new(path)
   end
+
+  SKIP_NAMES = ['.', '..']
+
+  # Walks the top-level members of the stated directory and
+  # yields an appropriate HadoopAsset::* instance for each.
+  def self.foreach_asset_in(directory)
+    path = ::File.expand_path(directory)
+    ::Dir.foreach(path) do |entry|
+      next if SKIP_NAMES.include? entry
+      yield asset_for(::File.join(path, entry))
+    end
+  end
 end

@@ -125,4 +125,40 @@ class AssetsTest < Test::Unit::TestCase
       end
     end
   end
+
+  tempdir_context 'a directory with files' do
+    setup do
+      @tempdir.file(@archive = 'an-archive.tar.gz')
+      @tempdir.file(@jar = 'jarry.jar')
+      @tempdir.file(@file = 'some.yaml')
+      @matches = {@archive => Hadupils::Assets::Archive,
+                  @jar     => Hadupils::Assets::Jar,
+                  @file    => Hadupils::Assets::File}
+    end
+
+    context 'given to Hadupils::Assets.foreach_asset_in' do
+      setup do
+        @received = []
+        Hadupils::Assets.foreach_asset_in(@tempdir.path) {|a| @received << a}
+      end
+
+      should 'get assets in lexicographic order' do
+        assert_equal @matches.keys.sort, (@received.collect {|a| a.name})
+      end
+
+      should 'get assets of appropriate type' do
+        type_map = @received.inject({}) {|hash, asset| hash[asset.name] = asset.class; hash}
+        assert_equal @matches, type_map
+      end
+
+      should 'get assets with expanded paths' do
+        path_map = @received.inject({}) {|hash, asset| hash[asset.name] = asset.path; hash}
+        expected = @matches.keys.inject({}) do |hash, name|
+          hash[name] = @tempdir.full_path(name)
+          hash
+        end
+        assert_equal expected, path_map
+      end
+    end
+  end
 end
