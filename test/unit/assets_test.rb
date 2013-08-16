@@ -47,7 +47,7 @@ class AssetsTest < Test::Unit::TestCase
 
   context 'a tarball' do
     setup do
-      @path = '/blah/blargh/../foo/blee/something.jar'
+      @path = '/blah/blargh/../foo/blee/something.tar.gz'
       @asset = Hadupils::Assets::Archive.new(@path)
     end
 
@@ -70,12 +70,15 @@ class AssetsTest < Test::Unit::TestCase
 
   context 'a hidden file' do
     should 'have a hidden File asset' do
+      assert_equal true, Hadupils::Assets::File.new('/blah/blee/.foo.bar.txt').hidden?
     end
 
     should 'have a hidden Archive asset' do
+      assert_equal true, Hadupils::Assets::Archive.new('/floo/flam/.foo.tar.gz').hidden?
     end
 
     should 'have a hidden Jar asset' do
+      assert_equal true, Hadupils::Assets::Jar.new('/flibbidy/blop/.foo.bar.jar').hidden?
     end
   end
 
