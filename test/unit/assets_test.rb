@@ -163,5 +163,14 @@ class AssetsTest < Test::Unit::TestCase
         assert_equal expected, path_map
       end
     end
+
+    context 'given to Hadupils::Assets.assets_in' do
+      should 'produce the collection of assets yielded by foreach_assets_in()' do
+        @assets = [mock(), mock(), mock(), mock(), mock()]
+        expectation = Hadupils::Assets.expects(:foreach_asset_in).with(@tempdir.path)
+        expectation.multiple_yields(*(@assets.collect {|i| [i]}))
+        assert_equal @assets, Hadupils::Assets.assets_in(@tempdir.path)
+      end
+    end
   end
 end

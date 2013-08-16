@@ -53,4 +53,12 @@ module Hadupils::Assets
       yield asset_for(::File.join(path, entry))
     end
   end
+
+  # Returns an array af HadoopAsset::* instances for the
+  # top-level members of the stated directory.
+  def self.assets_in(directory)
+    result = []
+    foreach_asset_in(directory) {|a| result << a }
+    result
+  end
 end
