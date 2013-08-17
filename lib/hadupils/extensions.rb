@@ -61,8 +61,26 @@ module Hadupils::Extensions
             item.to_s
           end
         end
-        @file.write(lines.join('\n') + '\n')
+        @file.write(lines.join("\n") + "\n")
         @file.flush
+      end
+    end
+  end
+
+  class EvalProxy
+    def initialize(scope)
+      @scope = scope
+    end
+
+    def assets(&block)
+      @scope.instance_eval do
+        @assets_block = block
+      end
+    end
+
+    def hiverc(&block)
+      @scope.instance_eval do
+        @hiverc_block = block
       end
     end
   end
@@ -70,9 +88,17 @@ module Hadupils::Extensions
   class Base
     attr_reader :assets, :path
 
-    def initialize(directory)
+    def initialize(directory, &block)
+      if block_given?
+        EvalProxy.new(self).instance_eval &block
+      end
       @path = ::File.expand_path(directory)
-      @assets = self.class.gather_assets(@path)
+      @assets = merge_assets(self.class.gather_assets(@path))
+    end
+
+    def merge_assets(assets)
+      return @assets_block.call(assets) if @assets_block
+      assets
     end
 
     def hivercs
@@ -81,6 +107,22 @@ module Hadupils::Extensions
 
     def self.gather_assets(directory)
       Hadupils::Assets.assets_in(directory)
+    end
+  end
+
+  class Flat < Base
+    def hivercs
+      @hiverc ||= assemble_hiverc
+      [@hiverc]
+    end
+
+    def assemble_hiverc
+      assets = @assets
+      if @hiverc_block
+        assets = @hiverc_block.call(assets.dup)
+      end
+      hiverc = Hadupils::Extensions::HiveRC::Dynamic.new
+      hiverc.write(assets)
     end
   end
 end

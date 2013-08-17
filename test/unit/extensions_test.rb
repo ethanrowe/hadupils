@@ -18,6 +18,20 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
         assert_equal @assets, Hadupils::Extensions::Base.new(@path).assets
       end
 
+      should "allow manipulation of assets post-expansion" do
+        Hadupils::Extensions::Base.stubs(:gather_assets).returns(@assets)
+        extra = mock()
+        ext = Hadupils::Extensions::Base.new(@path) do
+          assets do |items|
+            # We're just adding the new stuff to the original stuff
+            [items, extra]
+          end
+        end
+        # If the above assets block was applied, we'll see the additional
+        # item there.
+        assert_equal [@assets, extra], ext.assets
+      end
+
       should 'have an empty hivercs list' do
         Hadupils::Extensions::Base.stubs(:gather_assets).returns(@assets)
         assert_equal [], Hadupils::Extensions::Base.new(@path).hivercs
@@ -30,6 +44,9 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
         result = mock()
         Hadupils::Assets.expects(:assets_in).with(path).returns(result)
         assert_equal result, Hadupils::Extensions::Base.gather_assets(path)
+      end
+
+      should 'allow manipulation of assets' do
       end
     end
   end
@@ -95,7 +112,7 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
         should 'handle simple text lines' do
           lines = ['some stuff!', 'but what about...', 'this and this!?!']
           @hiverc.write(lines)
-          expect = lines.join('\n') + '\n'
+          expect = lines.join("\n") + "\n"
           assert_equal expect, @file.read
         end
 
@@ -112,7 +129,7 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
           end
 
           should 'use their hiverc_command for lines' do
-            expected = @asset_lines.join('\n') + '\n'
+            expected = @asset_lines.join("\n") + "\n"
             @hiverc.write(@assets)
             assert_equal expected, @file.read
           end
@@ -123,10 +140,62 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
               ary.insert(2, text_lines[1])
               ary.insert(1, text_lines[0])
             end
-            expected = @asset_lines.join('\n') + '\n'
+            expected = @asset_lines.join("\n") + "\n"
             @hiverc.write(@assets)
             assert_equal expected, @file.read
           end
+        end
+      end
+    end
+  end
+
+  context Hadupils::Extensions::Flat do
+    setup do
+      @klass = Hadupils::Extensions::Flat
+    end
+
+    should 'extend Hadupils::Extensions::Base' do
+      # I usually hate testing this sort of thing, but I want to quickly claim
+      # that @klass has the basic behaviors and focus on what's special about it.
+      assert @klass.ancestors.include? Hadupils::Extensions::Base
+    end
+
+    tempdir_context 'for realz' do
+      setup do
+        @tempdir.file(@file = 'a.file')
+        @tempdir.file(@jar = 'a.jar')
+        @tempdir.file(@archive = 'an.archive.tar.gz')
+        @file_line = "ADD FILE #{@tempdir.full_path(@file)};"
+        @jar_line = "ADD JAR #{@tempdir.full_path(@jar)};"
+        @archive_line = "ADD ARCHIVE #{@tempdir.full_path(@archive)};"
+      end
+
+      should 'produce only one hiverc' do
+        hivercs = @klass.new(@tempdir.path).hivercs
+        assert_equal 1, hivercs.size
+      end
+
+      should 'produce a hiverc for the expected assets' do
+        hivercs = @klass.new(@tempdir.path).hivercs
+        expected = "#{@file_line}\n#{@jar_line}\n#{@archive_line}\n"
+        File.open(hivercs[0].path, 'r') do |f|
+          assert_equal expected, f.read
+        end
+      end
+
+      should 'allow manipulation of hiverc items' do
+        extension = @klass.new(@tempdir.path) do
+          hiverc do |assets|
+            assets.insert(1, 'INSERT SOME TEXT HERE')
+            assets << 'FINAL LINE!'
+          end
+        end
+        expected = "#{@file_line}\n" +
+                   "INSERT SOME TEXT HERE\n" +
+                   "#{@jar_line}\n#{@archive_line}\n" +
+                   "FINAL LINE!\n"
+        File.open(extension.hivercs[0].path, 'r') do |f|
+          assert_equal expected, f.read
         end
       end
     end

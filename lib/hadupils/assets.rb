@@ -45,20 +45,13 @@ module Hadupils::Assets
   SKIP_NAMES = ['.', '..']
 
   # Walks the top-level members of the stated directory and
-  # yields an appropriate HadoopAsset::* instance for each.
-  def self.foreach_asset_in(directory)
-    path = ::File.expand_path(directory)
-    ::Dir.foreach(path) do |entry|
-      next if SKIP_NAMES.include? entry
-      yield asset_for(::File.join(path, entry))
-    end
-  end
-
-  # Returns an array af HadoopAsset::* instances for the
-  # top-level members of the stated directory.
+  # returns an array containing appropriate an HadoopAsset::*
+  # instance for each.
   def self.assets_in(directory)
-    result = []
-    foreach_asset_in(directory) {|a| result << a }
-    result
+    path = ::File.expand_path(directory)
+    ::Dir.entries(path).sort.inject([]) do |accum, entry|
+      accum << asset_for(::File.join(path, entry)) if not SKIP_NAMES.include? entry
+      accum
+    end
   end
 end

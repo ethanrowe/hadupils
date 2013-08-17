@@ -131,18 +131,17 @@ class AssetsTest < Test::Unit::TestCase
 
   tempdir_context 'a directory with files' do
     setup do
-      @tempdir.file(@archive = 'an-archive.tar.gz')
-      @tempdir.file(@jar = 'jarry.jar')
-      @tempdir.file(@file = 'some.yaml')
+      @tempdir.file(@archive = 'Awesome-archive.tar.gz')
+      @tempdir.file(@jar = 'jarrIE.jar')
+      @tempdir.file(@file = 'sumyummy.yaml')
       @matches = {@archive => Hadupils::Assets::Archive,
                   @jar     => Hadupils::Assets::Jar,
                   @file    => Hadupils::Assets::File}
     end
 
-    context 'given to Hadupils::Assets.foreach_asset_in' do
+    context 'given to Hadupils::Assets.assets_in' do
       setup do
-        @received = []
-        Hadupils::Assets.foreach_asset_in(@tempdir.path) {|a| @received << a}
+        @received = Hadupils::Assets.assets_in(@tempdir.path)
       end
 
       should 'get assets in lexicographic order' do
@@ -161,15 +160,6 @@ class AssetsTest < Test::Unit::TestCase
           hash
         end
         assert_equal expected, path_map
-      end
-    end
-
-    context 'given to Hadupils::Assets.assets_in' do
-      should 'produce the collection of assets yielded by foreach_assets_in()' do
-        @assets = [mock(), mock(), mock(), mock(), mock()]
-        expectation = Hadupils::Assets.expects(:foreach_asset_in).with(@tempdir.path)
-        expectation.multiple_yields(*(@assets.collect {|i| [i]}))
-        assert_equal @assets, Hadupils::Assets.assets_in(@tempdir.path)
       end
     end
   end
