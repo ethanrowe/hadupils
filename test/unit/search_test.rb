@@ -47,4 +47,37 @@ class Hadupils::SearchTest < Test::Unit::TestCase
       assert_equal nil, @module.find_from_pwd(@target)
     end
   end
+
+  context 'user_config' do
+    setup do
+      @module = Hadupils::Search
+    end
+
+    should 'use ~/conf by default' do
+      assert_equal ::File.expand_path(::File.join('~', 'conf')),
+                   @module.user_config
+    end
+
+    should 'be settable' do
+      assert_equal true, @module.respond_to?(:user_config=)
+    end
+  end
+
+  context 'hadoop_assets' do
+    should 'search for directory specified by #hadoop_assets_name' do
+      Hadupils::Search.expects(:hadoop_assets_name).with.returns(name = mock().to_s)
+      Hadupils::Search.expects(:find_from_pwd).with(name).returns(dir = mock())
+      assert_equal dir, Hadupils::Search.hadoop_assets
+    end
+  end
+
+  context 'hadoop_assets_name' do
+    should 'default to "hadoop-ext"' do
+      assert_equal 'hadoop-ext', Hadupils::Search.hadoop_assets_name
+    end
+
+    should 'be settable' do
+      assert_respond_to Hadupils::Search, :hadoop_assets_name=
+    end
+  end
 end
