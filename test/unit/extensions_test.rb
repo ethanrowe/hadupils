@@ -213,4 +213,34 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
       end
     end
   end
+
+  tempdir_context Hadupils::Extensions::Static do
+    setup do
+      @extension = Hadupils::Extensions::Static.new(@tempdir.path)
+    end
+
+    should 'have an empty list of assets from gather_assets' do
+      # These would ordinarily become assets in a dynamic extension.
+      @tempdir.file('some.jar')
+      @tempdir.file('some.tar.gz')
+      @tempdir.file('some.yaml')
+      # but not in this one.
+      assert_equal [], Hadupils::Extensions::Static.new(@tempdir.path).assets
+    end
+
+    should 'have an empty hivercs list when no hiverc file exists' do
+      assert_equal [], @extension.hivercs
+    end
+
+    context 'with a hiverc file' do
+      setup do
+        @hiverc = @tempdir.file('hiverc')
+      end
+
+      should 'have a static HiveRC instance in its hivercs list when a hiverc file exists' do
+        assert_equal [[Hadupils::Extensions::HiveRC::Static, @hiverc.path]],
+                     @extension.hivercs.collect {|h| [h.class, h.path] }
+      end
+    end
+  end
 end

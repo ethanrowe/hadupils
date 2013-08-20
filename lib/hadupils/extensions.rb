@@ -134,4 +134,24 @@ module Hadupils::Extensions
       hiverc.write(assets)
     end
   end
+
+  class Static < Base
+    def self.gather_assets(path)
+      []
+    end
+
+    def hiverc_path
+      ::File.join(path, 'hiverc')
+    end
+
+    def hiverc?
+      ::File.file? hiverc_path
+    end
+
+    def hivercs
+      r = []
+      r << Hadupils::Extensions::HiveRC::Static.new(hiverc_path) if hiverc?
+      r
+    end
+  end
 end
