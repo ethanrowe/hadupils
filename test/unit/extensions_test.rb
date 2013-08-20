@@ -1,5 +1,12 @@
 class Hadupils::ExtensionsTest < Test::Unit::TestCase
   context Hadupils::Extensions::Base do
+    context 'initialization with nil path' do
+      should 'have nil as the path' do
+        ext = Hadupils::Extensions::Base.new(nil)
+        assert_equal nil, ext.path
+      end
+    end
+
     context 'initialization' do
       setup do
         @path = mock()

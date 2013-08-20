@@ -101,7 +101,7 @@ module Hadupils::Extensions
       if block_given?
         EvalProxy.new(self).instance_eval &block
       end
-      @path = ::File.expand_path(directory)
+      @path = ::File.expand_path(directory) unless directory.nil?
       @assets = merge_assets(self.class.gather_assets(@path))
     end
 
