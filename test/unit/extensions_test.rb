@@ -65,6 +65,12 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
       should 'provide a close no-op' do
         assert_respond_to @klass.new('blah'), :close
       end
+
+      should 'know how to convert to #hive_opts' do
+        path = 'some/awesome/path'
+        assert_equal ['-i', ::File.expand_path(path)],
+                     @klass.new(path).hive_opts
+      end
     end
 
     context 'dynamic wrapper' do
@@ -74,6 +80,13 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
 
       should 'use Tempfile for its default file_handler' do
         assert_same ::Tempfile, @klass.file_handler
+      end
+
+      should 'know how to convert to #hive_opts' do
+        obj = @klass.new
+        obj.stubs(:path).returns(path = mock())
+        assert_equal ['-i', obj.path],
+                     obj.hive_opts
       end
 
       context 'internal file' do

@@ -1,12 +1,20 @@
 module Hadupils::Extensions
   # Tools for managing hive initialization files ("hiverc").
   module HiveRC
+    module HiveOpt
+      def hive_opts
+        ['-i', path]
+      end
+    end
+
     # Wraps an extant hive initialization file, and providing
     # an interface compatible with the critical parts of the
     # Dynamic sibling class so they may be used interchangeably
     # by runners when determining hive options.
     class Static
       attr_reader :path
+
+      include HiveOpt
 
       # Given a path, expands it ti
       def initialize(path)
@@ -23,6 +31,7 @@ module Hadupils::Extensions
     class Dynamic
       attr_reader :file
 
+      include HiveOpt
       require 'tempfile'
 
       # This will allow us to change what handles the dynamic files.
