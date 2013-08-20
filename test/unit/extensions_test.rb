@@ -48,6 +48,11 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
 
       should 'allow manipulation of assets' do
       end
+
+      should 'produce empty list for a nil path' do
+        Hadupils::Assets.expects(:assets_in).never
+        assert_equal [], Hadupils::Extensions::Base.gather_assets(nil)
+      end
     end
   end
 
@@ -194,6 +199,14 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
         File.open(hivercs[0].path, 'r') do |f|
           assert_equal expected, f.read
         end
+      end
+
+      should 'produce a hiverc of a dynamic type' do
+        # This is because I had a bug and was giving the hiverc File
+        # object instead of the dynamic hiverc wrapper object.
+        # Thus it blew up later on.
+        hivercs = @klass.new(@tempdir.path).hivercs
+        assert_kind_of Hadupils::Extensions::HiveRC::Dynamic, hivercs[0]
       end
 
       should 'allow manipulation of hiverc items' do

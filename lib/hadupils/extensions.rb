@@ -115,7 +115,11 @@ module Hadupils::Extensions
     end
 
     def self.gather_assets(directory)
-      Hadupils::Assets.assets_in(directory)
+      if not directory.nil?
+        Hadupils::Assets.assets_in(directory)
+      else
+        []
+      end
     end
   end
 
@@ -132,6 +136,7 @@ module Hadupils::Extensions
       end
       hiverc = Hadupils::Extensions::HiveRC::Dynamic.new
       hiverc.write(assets)
+      hiverc
     end
   end
 
