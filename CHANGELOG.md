@@ -11,3 +11,8 @@
 * Removed evil rubygems requirement from executable
 * Added this glorious changelog
 
+### 0.1.2
+
+* Fixed embarrassing mispelling of "shoulda-context" in gemspec
+  development dependencies
+

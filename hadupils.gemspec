@@ -1,7 +1,7 @@
 require 'rake'
 Gem::Specification.new do |s|
   s.name        = 'hadupils'
-  s.version     = '0.1.1'
+  s.version     = '0.1.2'
   s.email       = 'ethan@the-rowes.com'
   s.author      = 'Ethan Rowe'
   s.date        = '2013-08-15'
@@ -17,5 +17,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency('bundler')
   s.add_development_dependency('mocha')
   s.add_development_dependency('rake')
-  s.add_development_dependency('should-context')
+  s.add_development_dependency('shoulda-context')
 end
