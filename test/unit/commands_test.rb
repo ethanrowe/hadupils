@@ -88,6 +88,47 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
           end
         end
       end
+
+      tempdir_context 'running for (mostly) realz' do
+        setup do
+          @conf = ::File.join(@tempdir.path, 'conf')
+          @ext  = ::File.join(@tempdir.path, 'hadoop-ext')
+          ::Dir.mkdir(@conf)
+          ::Dir.mkdir(@ext)
+          @hiverc = @tempdir.file(File.join('conf', 'hiverc')) do |f|
+            f.write(@static_hiverc_content = 'my static content;')
+            f.path
+          end
+          file = Proc.new {|base, name| @tempdir.file(::File.join(base, name)).path }
+          @ext_file  = file.call('hadoop-ext', 'a_file.yaml')
+          @ext_jar   = file.call('hadoop-ext', 'a_jar.jar')
+          @ext_tar   = file.call('hadoop-ext', 'a_tar.tar.gz')
+          @dynamic_hiverc_content = ["ADD FILE #{@ext_file}",
+                                     "ADD JAR #{@ext_jar}",
+                                     "ADD ARCHIVE #{@ext_tar}"].join(";\n") + ";\n"
+          @pwd       = ::Dir.pwd
+          Hadupils::Search.stubs(:user_config).with.returns(@conf)
+          Hadupils::Runners::Hive.stubs(:base_runner).with.returns(@hive_prog = '/opt/hive/bin/hive')
+          ::Dir.chdir @tempdir.path
+        end
+
+        should 'produce a valid set of parameters and hivercs' do
+          Kernel.stubs(:system).with() do |*args|
+            args[0] == @hive_prog and
+            args[1] == '-i' and
+            File.open(args[2], 'r').read == @static_hiverc_content and
+            args[3] == '-i' and
+            File.open(args[4], 'r').read == @dynamic_hiverc_content and
+            args[5] == '--hiveconf' and
+            args[6] == 'my.foo=your.fu'
+          end
+          Hadupils::Commands.run 'hive', ['--hiveconf', 'my.foo=your.fu']
+        end
+
+        teardown do
+          ::Dir.chdir @pwd
+        end
+      end
     end
   end
 end
