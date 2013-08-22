@@ -16,3 +16,8 @@
 * Fixed embarrassing mispelling of "shoulda-context" in gemspec
   development dependencies
 
+### 0.1.3
+
+* Fixed compat. issue for ruby 1.8; downcase on symbol is a no-no.
+  In Hadupils::Command module.
+

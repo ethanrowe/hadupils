@@ -1,10 +1,10 @@
 require 'rake'
 Gem::Specification.new do |s|
   s.name        = 'hadupils'
-  s.version     = '0.1.2'
+  s.version     = '0.1.3'
   s.email       = 'ethan@the-rowes.com'
   s.author      = 'Ethan Rowe'
-  s.date        = '2013-08-15'
+  s.date        = '2013-08-22'
   s.platform    = Gem::Platform::RUBY
   s.description = 'Provides utilities for dynamic hadoop client environment configuration'
   s.summary     = s.description
