@@ -8,6 +8,24 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
       end
     end
 
+    # Addresses bug when run on older rubies
+    context 'handler pretty name normalization' do
+      context 'via handler_for' do
+        should 'not invoke downcase on requested handler' do
+          pretty = mock()
+          pretty.expects(:downcase).never
+          Hadupils::Commands.handler_for(pretty)
+        end
+
+        should 'produce downcased string' do
+          pretty = mock()
+          pretty.expects(:to_s).returns(s = mock())
+          s.expects(:downcase)
+          Hadupils::Commands.handler_for(pretty)
+        end
+      end
+    end
+
     context 'Hive' do
       setup do
         @klass = Hadupils::Commands::Hive

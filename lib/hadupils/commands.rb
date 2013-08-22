@@ -4,13 +4,17 @@ module Hadupils::Commands
     handler.run params
   end
 
+  def self.normalize_command(command)
+    command.to_s.downcase
+  end
+
   def self.handler_for(command)
-    @handlers and @handlers[command.downcase.to_sym]
+    @handlers and @handlers[normalize_command(command)]
   end
 
   def self.register_handler(command, handler)
     @handlers ||= {}
-    @handlers[command.downcase.to_sym] = handler
+    @handlers[normalize_command(command)] = handler
   end
 
   class SimpleCommand
