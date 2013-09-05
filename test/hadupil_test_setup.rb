@@ -47,4 +47,16 @@ class Test::Unit::TestCase
       instance_eval &block
     end
   end
+
+  # Lets us define shared bits of shoulda context (setup blocks, tests,
+  # subcontexts, etc.) in a declarative manner; installs a singleton method
+  # :name into the calling class, that when invoked will eval the given
+  # block in the current Shoulda::Context::Context.
+  # You can then simply call :name in any arbitrary context in order to
+  # make use of the shared stuff within that context.
+  def self.shared_context(name, &block)
+    define_singleton_method name do
+      Shoulda::Context.current_context.instance_eval &block
+    end
+  end
 end
