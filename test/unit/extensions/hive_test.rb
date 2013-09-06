@@ -5,6 +5,15 @@ class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
     end
   end
 
+  shared_context :hive_aux_jars_path_cases do
+    should 'assemble hive_aux_jars_path from auxiliary_jars appropriately for use with HIVE_AUX_JARS_PATH env' do
+      jars = [mock, mock, mock, mock].collect {|m| m.to_s}
+      @ext.expects(:auxiliary_jars).with.returns(jars.collect {|j| "  #{j}  "})
+      # Verifying whitespace trimming, as part of it.
+      assert_equal jars.join(','), @ext.hive_aux_jars_path
+    end
+  end
+
   shared_context :empty_hiverc_cases do
     should 'have an empty hivercs list' do
       assert_equal [], @ext.hivercs
@@ -98,6 +107,11 @@ class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
   end
 
   tempdir_context Hadupils::Extensions::Hive do
+    context 'with auxiliary jars' do
+      provide_hive_ext
+      hive_aux_jars_path_cases
+    end
+
     context 'given an empty directory' do
       provide_hive_ext
       empty_hiverc_cases
@@ -172,6 +186,71 @@ class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
           static_hiverc_cases
           valid_auxiliary_cases
         end
+      end
+    end
+  end
+
+  tempdir_context Hadupils::Extensions::HiveSet do
+    setup do
+      @cls = Hadupils::Extensions::HiveSet
+    end
+
+    should 'have the dir path expanded as :path' do
+      # Making the path relative demonstrates path expansion
+      ::Dir.chdir(::File.dirname(@tempdir.path)) do
+        assert_equal @tempdir.path,
+                     @cls.new(::File.basename(@tempdir.path)).path
+      end
+    end
+
+    should 'produce a Hadupils::Extensions::Hive per subdirectory' do
+      ::Dir.mkdir(a = @tempdir.full_path('aye'))
+      ::Dir.mkdir(b = @tempdir.full_path('bee'))
+      ::Dir.mkdir(c = @tempdir.full_path('si'))
+
+      # These should be ignored 'cause they ain't dirs
+      @tempdir.file('foo.txt')
+      @tempdir.file('blah.jar')
+      @tempdir.file('garbage.tar.gz')
+
+      expect = [a, b, c].collect {|path| [Hadupils::Extensions::Hive, path]}
+      ext = @cls.new(@tempdir.path)
+      assert_equal expect,
+                   ext.members.collect {|member| [member.class, member.path]}
+    end
+
+    context 'with members' do
+      setup do
+        @member_a = mock
+        @member_b = mock
+        @cls.expects(:gather_member_extensions).with(@tempdir.path).returns(@members = [@member_a, @member_b])
+        @ext = @cls.new @tempdir.path
+      end
+
+      hive_aux_jars_path_cases
+
+      should 'base members list on :gather_member_extensions' do
+        assert_equal @members, @ext.members
+      end
+
+      should 'produce the cumulative hivercs list from its members' do
+        hivercs = @members.inject([]) do |expect, member|
+          this_pair = [mock, mock]
+          member.expects(:hivercs).with.returns(this_pair)
+          expect + this_pair
+        end
+
+        assert_equal hivercs, @ext.hivercs
+      end
+
+      should 'produce the cumulative auxiliary_jars list from its members' do
+        jarries = @members.inject([]) do |expect, member|
+          jars = [mock, mock, mock].collect {|jar| jar.to_s}
+          member.expects(:auxiliary_jars).with.returns(jars)
+          expect + jars
+        end
+
+        assert_equal jarries, @ext.auxiliary_jars
       end
     end
   end
