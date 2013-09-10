@@ -30,3 +30,11 @@
   parameter (custom support for pre-1.9 ruby, the Kernel.system call
   of which does not handle such things)
 
+### 0.3.0
+
+* Introduced Hadupils::Extensions::FlatArchivePath
+* The "hive" command uses a FlatArchivePath for hadoop-ext instead
+  of Flat, so PATH will include bin dirs of any hadoop-ext archives
+  when a streaming query runs.
+* Some misc. utility functions in Hadupils::Util for reading tarballs.
+
