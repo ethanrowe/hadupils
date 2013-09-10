@@ -44,9 +44,9 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
         assert_equal result, @klass.run(params)
       end
 
-      should 'have a Flat extension based on a search for hadoop-ext' do
+      should 'have a FlatArchivePath extension based on a search for hadoop-ext' do
         Hadupils::Search.expects(:hadoop_assets).with.returns(assets = mock())
-        Hadupils::Extensions::Flat.expects(:new).with(assets).returns(extension = mock())
+        Hadupils::Extensions::FlatArchivePath.expects(:new).with(assets).returns(extension = mock())
         cmd = @klass.new
         assert_equal extension, cmd.hadoop_ext
         # This should cause failure if the previous result wasn't

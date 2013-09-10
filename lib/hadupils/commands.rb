@@ -25,7 +25,7 @@ module Hadupils::Commands
 
   module HadoopExt
     def hadoop_ext
-      @hadoop_ext ||= Hadupils::Extensions::Flat.new(Hadupils::Search.hadoop_assets)
+      @hadoop_ext ||= Hadupils::Extensions::FlatArchivePath.new(Hadupils::Search.hadoop_assets)
     end
   end
 
