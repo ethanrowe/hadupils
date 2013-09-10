@@ -231,6 +231,48 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
           assert_equal expected, f.read
         end
       end
+
+      context 'ArchivePath extension' do
+        setup do
+          require 'rubygems/package'
+          require 'zlib'
+          @klass = Hadupils::Extensions::FlatArchivePath
+          @bin_archives = %w(one two).collect do |name|
+            @tempdir.file("zarchive-with-bin-#{name}.tar.gz") do |f|
+              Zlib::GzipWriter.open(f) do |zlib|
+                buffer = StringIO.new('')
+                Gem::Package::TarWriter.new(buffer) do |writer|
+                  writer.add_file("#{name}.txt", '644'.oct) {|x| x.write('blah')}
+                  writer.mkdir('bin', '755'.oct)
+                end
+                zlib.write buffer.string
+              end
+              f.path
+            end
+          end
+
+          @bin_archive_lines = @bin_archives.collect {|path| "ADD ARCHIVE #{path};"}.join("\n")
+        end
+
+        should 'produce a hiverc for the expected assets and archives with bins added to PATH' do
+          path_prefix = @bin_archives.collect {|p| "$(pwd)/#{::File.basename(p)}/bin" }.join(':')
+          expected = "#{@file_line}\n#{@jar_line}\n#{@archive_line}\n" +
+                     "#{@bin_archive_lines}\n" +
+                     "SET mapred.child.env = PATH=#{path_prefix}:$PATH;\n" +
+                     (last_line = 'SET last.line = thisone;') + "\n"
+          ext = @klass.new(@tempdir.path) do
+            hiverc do |items|
+              items << last_line
+            end
+          end
+          hivercs = ext.hivercs
+          assert_kind_of Hadupils::Extensions::HiveRC::Dynamic, hivercs[0]
+          assert_equal 1, hivercs.length
+          ::File.open(hivercs[0].path, 'r') do |f|
+            assert_equal expected, f.read
+          end
+        end
+      end
     end
   end
 

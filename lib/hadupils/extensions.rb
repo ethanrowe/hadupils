@@ -129,14 +129,48 @@ module Hadupils::Extensions
       [@hiverc]
     end
 
+    def default_hiverc_items
+      @assets.dup
+    end
+
     def assemble_hiverc
-      assets = @assets
+      assets = default_hiverc_items
       if @hiverc_block
         assets = @hiverc_block.call(assets.dup)
       end
       hiverc = Hadupils::Extensions::HiveRC::Dynamic.new
       hiverc.write(assets)
       hiverc
+    end
+  end
+
+  class FlatArchivePath < Flat
+    def archives_for_path_env
+      @assets.find_all do |a|
+        if a.kind_of? Hadupils::Assets::Archive
+          begin
+            Hadupils::Util.archive_has_directory?(a.path, 'bin')
+          rescue
+            false
+          end
+        else
+          false
+        end
+      end
+    end
+
+    def default_hiverc_items
+      items = super
+      archs = archives_for_path_env
+      if archs.length > 0
+        items << self.class.assemble_path_env(archs)
+      end
+      items
+    end
+
+    def self.assemble_path_env(archives)
+      paths = archives.collect {|a| "$(pwd)/#{ a.name }/bin" }
+      "SET mapred.child.env = PATH=#{ paths.join(':') }:$PATH;"
     end
   end
 
