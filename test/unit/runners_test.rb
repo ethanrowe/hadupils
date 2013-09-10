@@ -11,26 +11,76 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
     context 'wait!' do
       setup do
         @command = [mock(), mock(), mock()]
-        @runner.expects(:command).with.returns(@command)
         # This will ensure that $? is non-nil
         system(RbConfig.ruby, '-v')
       end
 
-      should 'assemble system call via command method' do
-        Kernel.expects(:system).with(*@command).returns(true)
-        $?.stubs(:exitstatus).with.returns(mock())
-        @runner.wait!
+      context 'with semi-modern ruby' do
+        setup do
+          @runner.expects(:command).with.returns(@command)
+        end
+
+        should 'assemble system call via command method' do
+          Kernel.expects(:system).with(*@command).returns(true)
+          $?.stubs(:exitstatus).with.returns(mock())
+          @runner.wait!
+        end
+
+        should 'return 255 when system returns nil' do
+          Kernel.stubs(:system).returns(nil)
+          assert_equal 255, @runner.wait!
+        end
+
+        should 'return Process::Status#exitstatus when non-nil system result' do
+          Kernel.stubs(:system).returns(true)
+          $?.stubs(:exitstatus).with.returns(status = mock())
+          assert_equal status, @runner.wait!
+        end
       end
 
-      should 'return 255 when system returns nil' do
-        Kernel.stubs(:system).returns(nil)
-        assert_equal 255, @runner.wait!
-      end
+      context 'with ruby pre 1.9' do
+        setup do
+          @orig_ruby_version = ::RUBY_VERSION
+          ::RUBY_VERSION = '1.8.7'
+        end
 
-      should 'return Process::Status#exitstatus when non-nil system result' do
-        Kernel.stubs(:system).returns(true)
-        $?.stubs(:exitstatus).with.returns(status = mock())
-        assert_equal status, @runner.wait!
+        teardown do
+          ::RUBY_VERSION = @orig_ruby_version
+        end
+
+        should 'handle command without env hash normally' do
+          @runner.expects(:command).with.returns(@command)
+          Kernel.expects(:system).with(*@command).returns(true)
+          $?.stubs(:exitstatus).with.returns(mock)
+          @runner.wait!
+        end
+
+        should 'handle environment hash specially and restore env' do
+          # A defined environment variable to play with.
+          var = ::ENV.keys.find {|k| ENV[k].strip.length > 0}
+          orig = ::ENV[var]
+          to_be_removed = ::ENV.keys.sort[-1] + 'X'
+          removal_val = mock.to_s
+          replacement = "#{orig}-#{mock.to_s}"
+          @runner.expects(:command).with.returns([{var => replacement, to_be_removed => removal_val}] + @command)
+          $?.stubs(:exitstatus).with.returns(mock)
+          begin
+            # Environment variable is overridden during system call
+            matcher = Kernel.expects(:system).with do |*args|
+              args == @command and ::ENV[var] == replacement and ::ENV[to_be_removed] == removal_val
+            end
+
+            matcher.returns true
+
+            @runner.wait!
+
+            # But is restored afterward
+            assert_equal orig, ::ENV[var]
+            assert_equal false, ::ENV.has_key?(to_be_removed)
+          ensure
+            ::ENV[var] = orig
+          end
+        end
       end
     end
   end
@@ -56,12 +106,25 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
       end
 
       should 'provide invocation for bare hive if given empty parameters' do
-        assert_equal [@hive_path], @klass.new([]).command
+        assert_equal [{}, @hive_path], @klass.new([]).command
+      end
+
+      should 'provide invocation with aux jars and bare hive given empty params but aux jars path' do
+        ENV.stubs(:[]=).with('HIVE_AUX_JARS_PATH').returns(nil)
+        assert_equal [{'HIVE_AUX_JARS_PATH' => 'foo'}, @hive_path],
+                     @klass.new([], 'foo').command
+      end
+
+      should 'provide invocation with merged aux jars given otherwise bare stuff' do
+        ::ENV.stubs(:[]).with('HIVE_AUX_JARS_PATH').returns(orig = mock.to_s)
+        additional = mock.to_s
+        assert_equal [{'HIVE_AUX_JARS_PATH' => "#{additional},#{orig}"}, @hive_path],
+                     @klass.new([], additional).command
       end
 
       should 'provide invocation for hive with all given parameters' do
         params = [mock().to_s, mock().to_s, mock().to_s, mock().to_s]
-        assert_equal [@hive_path] + params,
+        assert_equal [{}, @hive_path] + params,
                      @klass.new(params).command
       end
 
@@ -72,7 +135,7 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
         p2.expects(:hive_opts).with.returns(p2_opts = ['-i', mock().to_s])
         s1 = mock().to_s
         s2 = mock().to_s
-        assert_equal [@hive_path, s1] + p1_opts + [s2] + p2_opts,
+        assert_equal [{}, @hive_path, s1] + p1_opts + [s2] + p2_opts,
                      @klass.new([s1, p1, s2, p2]).command
       end
     end

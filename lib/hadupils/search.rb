@@ -46,4 +46,22 @@ module Hadupils::Search
   def self.hadoop_assets
     find_from_pwd(hadoop_assets_name)
   end
+
+  # The basename to use when looking for hive extensions from pwd.
+  def self.hive_extensions_name
+    @hive_extensions_name || 'hive-ext'
+  end
+
+  # Set the basename to use when looking for hive assets from pwd.
+  def self.hive_extensions_name=(basename)
+    @hive_extensions_name = basename
+  end
+
+  # A search for #hive_extensions_name from the pwd.
+  # The default behavior is to look for a subdir named +hive-ext+,
+  # starting from the current working directory and walking upwards until
+  # a match is found or the file system root is encountered.
+  def self.hive_extensions
+    find_from_pwd(hive_extensions_name)
+  end
 end

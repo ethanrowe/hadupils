@@ -35,16 +35,23 @@ module Hadupils::Commands
     end
   end
 
+  module HiveExt
+    def hive_ext
+      @hive_ext ||= Hadupils::Extensions::HiveSet.new(Hadupils::Search.hive_extensions)
+    end
+  end
+
   class Hive < SimpleCommand
     include HadoopExt
+    include HiveExt
     include UserConf
 
     def assemble_parameters(parameters)
-      user_config.hivercs + hadoop_ext.hivercs + parameters
+      user_config.hivercs + hadoop_ext.hivercs + hive_ext.hivercs + parameters
     end
 
     def run(parameters)
-      Hadupils::Runners::Hive.run assemble_parameters(parameters)
+      Hadupils::Runners::Hive.run assemble_parameters(parameters), hive_ext.hive_aux_jars_path
     end
   end
 

@@ -80,4 +80,22 @@ class Hadupils::SearchTest < Test::Unit::TestCase
       assert_respond_to Hadupils::Search, :hadoop_assets_name=
     end
   end
+
+  context 'hive_extensions' do
+    should 'search for a directory specified by #hive_extensions_name' do
+      Hadupils::Search.expects(:hive_extensions_name).with.returns(name = mock.to_s)
+      Hadupils::Search.expects(:find_from_pwd).with(name).returns(dir = mock)
+      assert_equal dir, Hadupils::Search.hive_extensions
+    end
+  end
+
+  context 'hive_extensions_name' do
+    should 'default to "hive-ext"' do
+      assert_equal 'hive-ext', Hadupils::Search.hive_extensions_name
+    end
+
+    should 'be settable' do
+      assert_respond_to Hadupils::Search, :hive_extensions_name=
+    end
+  end
 end

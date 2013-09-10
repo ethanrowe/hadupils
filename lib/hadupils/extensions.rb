@@ -160,3 +160,5 @@ module Hadupils::Extensions
     end
   end
 end
+
+require 'hadupils/extensions/hive'

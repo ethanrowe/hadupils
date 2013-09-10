@@ -63,28 +63,47 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
         cmd.user_config
       end
 
+      should 'have a HiveSet extension based on search for hive-ext' do
+        Hadupils::Search.expects(:hive_extensions).with.returns(path = mock())
+        Hadupils::Extensions::HiveSet.expects(:new).with(path).returns(extension = mock)
+        cmd = @klass.new
+        assert_equal extension, cmd.hive_ext
+        # Fails on expectations if previous result wasn't cached.
+        cmd.hive_ext
+      end
+
       context '#run' do
         setup do
           @command = @klass.new
           @command.stubs(:user_config).with.returns(@user_config = mock())
           @command.stubs(:hadoop_ext).with.returns(@hadoop_ext = mock())
+          @command.stubs(:hive_ext).with.returns(@hive_ext = mock)
           @runner_class = Hadupils::Runners::Hive
         end
 
-        context 'with user config and hadoop asssets hivercs' do
+        context 'with user config, hadoop assets, hive ext hivercs and aux jars' do
           setup do
             @user_config.stubs(:hivercs).returns(@user_config_hivercs = [mock(), mock()])
             @hadoop_ext.stubs(:hivercs).returns(@hadoop_ext_hivercs = [mock(), mock(), mock()])
+            @hive_ext.stubs(:hivercs).returns(@hive_ext_hivercs = [mock, mock, mock])
+            @hive_ext.stubs(:hive_aux_jars_path).returns(@hive_aux_jars_path = mock.to_s)
           end
 
           should 'apply hiverc options to hive runner call' do
-            @runner_class.expects(:run).with(@user_config_hivercs + @hadoop_ext_hivercs).returns(result = mock())
+            @runner_class.expects(:run).with(@user_config_hivercs +
+                                             @hadoop_ext_hivercs +
+                                             @hive_ext_hivercs,
+                                             @hive_aux_jars_path).returns(result = mock())
             assert_equal result, @command.run([])
           end
 
           should 'prepend hiverc options before given params to hive runner call' do
             params = [mock(), mock()]
-            @runner_class.expects(:run).with(@user_config_hivercs + @hadoop_ext_hivercs + params).returns(result = mock())
+            @runner_class.expects(:run).with(@user_config_hivercs +
+                                             @hadoop_ext_hivercs +
+                                             @hive_ext_hivercs +
+                                             params,
+                                             @hive_aux_jars_path).returns(result = mock())
             assert_equal result, @command.run(params)
           end
         end
@@ -93,15 +112,17 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
           setup do
             @user_config.stubs(:hivercs).returns([])
             @hadoop_ext.stubs(:hivercs).returns([])
+            @hive_ext.stubs(:hivercs).returns([])
+            @hive_ext.stubs(:hive_aux_jars_path).returns('')
           end
 
-          should 'pass params unchanged through to hive runner call' do
-            @runner_class.expects(:run).with(params = [mock(), mock()]).returns(result = mock())
+          should 'pass params unchanged through to hive runner call along with aux jars path' do
+            @runner_class.expects(:run).with(params = [mock(), mock()], '').returns(result = mock())
             assert_equal result, @command.run(params)
           end
 
           should 'handle empty params' do
-            @runner_class.expects(:run).with([]).returns(result = mock())
+            @runner_class.expects(:run).with([], '').returns(result = mock())
             assert_equal result, @command.run([])
           end
         end
@@ -111,8 +132,11 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
         setup do
           @conf = ::File.join(@tempdir.path, 'conf')
           @ext  = ::File.join(@tempdir.path, 'hadoop-ext')
+          @hive_ext = @tempdir.full_path('hive-ext')
+
           ::Dir.mkdir(@conf)
           ::Dir.mkdir(@ext)
+          ::Dir.mkdir(@hive_ext)
           @hiverc = @tempdir.file(File.join('conf', 'hiverc')) do |f|
             f.write(@static_hiverc_content = 'my static content;')
             f.path
@@ -124,21 +148,81 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
           @dynamic_hiverc_content = ["ADD FILE #{@ext_file}",
                                      "ADD JAR #{@ext_jar}",
                                      "ADD ARCHIVE #{@ext_tar}"].join(";\n") + ";\n"
+
+          # Assemble two entries under hive-ext
+          @hive_exts = %w(one two).inject({}) do |result, name|
+            state = result[name.to_sym] = {}
+            state[:path] = ::File.join(@hive_ext, name)
+
+            ::Dir.mkdir(state[:path])
+            state[:static_hiverc] = ::File.open(::File.join(state[:path], 'hiverc'), 'w') do |file|
+              file.write(state[:static_hiverc_content] = "#{name} static content")
+              file.path
+            end
+
+            assets = state[:assets] = %w(a.tar.gz b.txt c.jar).collect do |base|
+              ::File.open(::File.join(state[:path], "#{name}-#{base}"), 'w') do |file|
+                file.path
+              end
+            end
+
+            state[:dynamic_hiverc_content] = ["ADD ARCHIVE #{assets[0]};",
+                                              "ADD FILE #{assets[1]};",
+                                              "ADD JAR #{assets[2]};"].join("\n") + "\n"
+
+            aux_path = state[:aux_path] = ::File.join(state[:path], 'aux-jars')
+            ::Dir.mkdir(aux_path)
+            state[:aux_jars] = %w(boo foo).collect do |base|
+              ::File.open(::File.join(aux_path, "#{name}-#{base}.jar"), 'w') do |file|
+                file.path
+              end
+            end
+
+            state[:hive_aux_jars_path] = state[:aux_jars].join(',')
+
+            result
+          end
+
+          # Can't use a simple stub for this because other things are
+          # checked within ENV.  Use a teardown to reset to its original state.
+          @orig_hive_aux_jars_path = ENV['HIVE_AUX_JARS_PATH']
+          ::ENV['HIVE_AUX_JARS_PATH'] = env_aux = mock.to_s
+          @hive_aux_jars_path_val = [@hive_exts[:one][:hive_aux_jars_path],
+                                     @hive_exts[:two][:hive_aux_jars_path],
+                                     env_aux].join(',')
+
           @pwd       = ::Dir.pwd
           Hadupils::Search.stubs(:user_config).with.returns(@conf)
           Hadupils::Runners::Hive.stubs(:base_runner).with.returns(@hive_prog = '/opt/hive/bin/hive')
           ::Dir.chdir @tempdir.path
         end
 
+        teardown do
+          if @orig_hive_aux_jars_path
+            ENV['HIVE_AUX_JARS_PATH'] = @orig_hive_aux_jars_path
+          else
+            ENV.delete 'HIVE_AUX_JARS_PATH'
+          end
+        end
+
         should 'produce a valid set of parameters and hivercs' do
           Kernel.stubs(:system).with() do |*args|
-            args[0] == @hive_prog and
-            args[1] == '-i' and
-            File.open(args[2], 'r').read == @static_hiverc_content and
-            args[3] == '-i' and
-            File.open(args[4], 'r').read == @dynamic_hiverc_content and
-            args[5] == '--hiveconf' and
-            args[6] == 'my.foo=your.fu'
+            args[0] == {'HIVE_AUX_JARS_PATH' => @hive_aux_jars_path_val} and
+            args[1] == @hive_prog and
+            args[2] == '-i' and
+            File.open(args[3], 'r').read == @static_hiverc_content and
+            args[4] == '-i' and
+            File.open(args[5], 'r').read == @dynamic_hiverc_content and
+            args[6] == '-i' and
+            File.open(args[7], 'r').read == @hive_exts[:one][:dynamic_hiverc_content] and
+            args[8] == '-i' and
+            File.open(args[9], 'r').read == @hive_exts[:one][:static_hiverc_content] and
+            args[10] == '-i' and
+            File.open(args[11], 'r').read == @hive_exts[:two][:dynamic_hiverc_content] and
+            args[12] == '-i' and
+            File.open(args[13], 'r').read == @hive_exts[:two][:static_hiverc_content] and
+            args[14] == '--hiveconf' and
+            args[15] == 'my.foo=your.fu'
           end
           Hadupils::Commands.run 'hive', ['--hiveconf', 'my.foo=your.fu']
         end
