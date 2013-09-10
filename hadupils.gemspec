@@ -1,7 +1,7 @@
 require 'rake'
 Gem::Specification.new do |s|
   s.name        = 'hadupils'
-  s.version     = '0.1.3'
+  s.version     = '0.2.0'
   s.email       = 'ethan@the-rowes.com'
   s.author      = 'Ethan Rowe'
   s.date        = '2013-08-22'
