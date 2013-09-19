@@ -162,6 +162,39 @@ module Hadupils::Extensions
     def self.assemble_static_extension(path)
       Static.new(path)
     end
+
+    def self.build_archive(io, dist_assets, aux_jars=nil)
+      dist, aux = [dist_assets, (aux_jars || [])].collect do |files|
+        files.collect do |asset|
+          path = ::File.expand_path(asset)
+          raise "Cannot include directory '#{path}'." if ::File.directory? path
+          path
+        end
+      end
+
+      require 'tempfile'
+      require 'fileutils'
+      ::Dir.mktmpdir do |workdir|
+        basenames = dist.collect do |src|
+          FileUtils.cp src, File.join(workdir, File.basename(src))
+          File.basename src
+        end
+
+        if aux.length > 0
+          basenames << AUX_PATH
+          aux_dir = File.join(workdir, AUX_PATH)
+          Dir.mkdir aux_dir
+          aux.each do |src|
+            FileUtils.cp src, File.join(aux_dir, File.basename(src))
+          end
+        end
+
+        ::Dir.chdir(workdir) do |p|
+          Kernel.system 'tar', 'cz', *basenames, :out => io
+        end
+      end
+      true
+    end
   end
 
   # Collection class for filesystem-based Hive extensions

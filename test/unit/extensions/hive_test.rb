@@ -106,6 +106,51 @@ class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
     end
   end
 
+  shared_context :assembles_compressed_archive do
+    setup do
+      @unpack_dir = @tempdir.full_path('unpack')
+      Dir.mkdir @unpack_dir
+
+      @pipe_read, @pipe_write = IO.pipe
+      Dir.chdir @unpack_dir do |p|
+        @tar_pid = Kernel.spawn 'tar', 'xz', :in => @pipe_read
+      end
+    end
+
+    should 'assemble a hive-ext-compatible compressed archive' do
+      @pipe_write.close
+      Process.wait @tar_pid
+      dist, aux = [[@unpack_dir, ['aux-jars']],
+                   [File.join(@unpack_dir, 'aux-jars'), []]].collect do |dir, excl|
+        excl += ['.', '..']
+        begin
+          Dir.entries(dir).inject({}) do |a, entry|
+            if not excl.include?(entry)
+              a[entry] = File.open(File.join(dir, entry), 'r') {|f| f.read}
+            end
+            a
+          end
+        rescue Exception => e
+          {}
+        end
+      end
+
+      dist_exp = {
+        File.basename(@dist_jar_a) => @dist_jar_a_content,
+        File.basename(@dist_jar_b) => @dist_jar_b_content,
+        File.basename(@hiverc) => @hiverc_content,
+      }
+
+      aux_exp = {
+        File.basename(@aux_jar_a) => @aux_jar_a_content,
+        File.basename(@aux_jar_b) => @aux_jar_b_content,
+      }
+
+      assert_equal dist_exp, dist
+      assert_equal aux_exp, aux
+    end
+  end
+
   tempdir_context Hadupils::Extensions::Hive do
     context 'with auxiliary jars' do
       provide_hive_ext
@@ -185,6 +230,92 @@ class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
           dynamic_hiverc_cases
           static_hiverc_cases
           valid_auxiliary_cases
+        end
+      end
+    end
+
+    context 'build_archive singleton method' do
+      require 'stringio'
+
+      setup do
+        ::Dir.mkdir(@some_dir = @tempdir.full_path('some_stuff'))
+        ::Dir.mkdir(@other_dir = @tempdir.full_path('other_stuff'))
+        @dist_jar_a = ::File.open(::File.join(@some_dir, 'a.jar'), 'w') do |f|
+          f.write(@dist_jar_a_content = 'dist jar a')
+          f.path
+        end
+
+        @aux_jar_a = ::File.open(::File.join(@some_dir, 'auxa.jar'), 'w') do |f|
+          f.write(@aux_jar_a_content = 'aux jar a')
+          f.path
+        end
+
+        @hiverc = @tempdir.file('hiverc') {|f| f.write(@hiverc_content = 'hiverc stuff'); f.path}
+
+        @dist_jar_b = ::File.open(::File.join(@other_dir, 'b.jar'), 'w') do |f|
+          f.write(@dist_jar_b_content = 'dist jar b')
+          f.path
+        end
+
+        @aux_jar_b = ::File.open(::File.join(@other_dir, 'auxb.jar'), 'w') do |f|
+          f.write(@aux_jar_b_content = 'aux jar b')
+          f.path
+        end
+
+        @mod = Hadupils::Extensions::Hive
+      end
+
+      should 'barf on a dist directory' do
+        # assert_raise ain't doing this for me...
+        e = nil
+        begin
+          @mod.build_archive StringIO.new(''), [@tempdir.path]
+        rescue Exception => e
+        end
+
+        assert_instance_of RuntimeError, e
+        assert_equal "Cannot include directory '#{@tempdir.path}'.", e.message
+      end
+
+      should 'barf on an aux directory' do
+        # assert_raise ain't doing this for me...
+        e = nil
+        begin
+          @mod.build_archive StringIO.new(''), [], [@tempdir.path]
+        rescue Exception => e
+        end
+
+        assert_instance_of RuntimeError, e
+        assert_equal "Cannot include directory '#{@tempdir.path}'.", e.message
+      end
+
+      context 'given absolute paths' do
+        assembles_compressed_archive
+
+        setup do
+          @mod.build_archive @pipe_write,
+                             [@dist_jar_a, @dist_jar_b, @hiverc],
+                             [@aux_jar_a, @aux_jar_b]
+        end
+      end
+
+      context 'given relative paths' do
+        assembles_compressed_archive
+
+        setup do
+          chars = @tempdir.path.length + 1 # +1 for trailing slash
+
+          dist = [@dist_jar_a, @dist_jar_b, @hiverc].collect do |path|
+            path[chars..-1]
+          end
+
+          aux = [@aux_jar_a, @aux_jar_b].collect do |path|
+            path[chars..-1]
+          end
+
+          Dir.chdir(@tempdir.path) do |p|
+            @mod.build_archive @pipe_write, dist, aux
+          end
         end
       end
     end
