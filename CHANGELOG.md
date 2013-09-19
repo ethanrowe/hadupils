@@ -38,3 +38,9 @@
   when a streaming query runs.
 * Some misc. utility functions in Hadupils::Util for reading tarballs.
 
+### 0.4.0
+
+* Introduced Hadupils::Extensions::Hive.build_archive
+  Helper method for assembling gzipped archives the contents of which
+  are hive-ext compatible.
+
