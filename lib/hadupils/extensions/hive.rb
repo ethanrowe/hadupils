@@ -163,6 +163,38 @@ module Hadupils::Extensions
       Static.new(path)
     end
 
+    # Writes a gzipped tar archive to +io+, the contents of which
+    # are structured appropriately for use with this class.
+    # 
+    # Provide the static hiverc and any other distributed cache-bound
+    # assets in +dist_assets+, and any auxiliary jars to include in
+    # +aux_jars+.
+    #
+    # This utilizes a system call to +tar+ under the hood, which requires
+    # that it be installed and on your +PATH+.
+    #
+    # You can use any file-like writable thing for +io+, so files,
+    # pipes, etc.
+    #
+    # See this example:
+    #
+    #     File.open('foo.tar.gz', 'w') do |f|
+    #       Hadupils::Extensions::Hive.build_archive f,
+    #                                                ['/tmp/here/blah.jar',
+    #                                                 '/tmp/there/hiverc'],
+    #                                                ['/tmp/elsewhere/foo.jar']
+    #     end
+    #
+    # The following example would produce an archive named "foo.tar.gz",
+    # the contents of which would be:
+    #
+    #     aux-jars/foo.jar
+    #     blah.jar
+    #     hiverc
+    #
+    # Note that it collapses things into two distinct directories, such
+    # that basename collisions are possible.  That's on you to handle
+    # sanely.
     def self.build_archive(io, dist_assets, aux_jars=nil)
       dist, aux = [dist_assets, (aux_jars || [])].collect do |files|
         files.collect do |asset|
