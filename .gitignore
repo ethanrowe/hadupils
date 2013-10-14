@@ -6,6 +6,11 @@
 *.rbc
 .bundle
 .config
+.envrc
+.ruby-version
+.rvmrc
+bin
+!bin/hadupils
 coverage
 InstalledFiles
 lib/bundler/man
@@ -15,6 +20,15 @@ spec/reports
 test/tmp
 test/version_tmp
 tmp
+
+# Rubymine
+.idea
+
+# Sublime
+*.sublime-*
+
+# Mac OS X
+.DS_Store
 
 # YARD artifacts
 .yardoc

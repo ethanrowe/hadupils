@@ -1,16 +1,30 @@
 GEM
-  remote: http://rubygems.org/
+  remote: https://rubygems.org/
   specs:
+    coderay (1.0.9)
+    macaddr (1.6.1)
+      systemu (~> 2.5.0)
     metaclass (0.0.1)
+    method_source (0.8.1)
     mocha (0.14.0)
       metaclass (~> 0.0.1)
+    pry (0.9.12)
+      coderay (~> 1.0.5)
+      method_source (~> 0.8)
+      slop (~> 3.4)
     rake (10.1.0)
     shoulda-context (1.1.5)
+    slop (3.4.4)
+    systemu (2.5.2)
+    uuid (2.3.7)
+      macaddr (~> 1.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   mocha
-  rake (= 10.1.0)
+  pry (~> 0.9.0)
+  rake (~> 10.1.0)
   shoulda-context
+  uuid (~> 2.3.0)

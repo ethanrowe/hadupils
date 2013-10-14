@@ -1,4 +1,55 @@
+require 'uuid'
+require 'tempfile'
+
 module Hadupils::Extensions
+  # Tools for managing tmp files in the hadoop dfs
+  module Dfs
+    module TmpFile
+      def self.uuid
+        @uuid ||= UUID.new
+      end
+
+      def self.tmp_path
+        @tmp_path ||= (ENV['HADUPILS_BASE_TMP_PATH'] || '/tmp')
+      end
+
+      def self.tmpfile_path
+        @tmpdir_path ||= ::File.join(tmp_path, "hadupils-tmp-#{uuid.generate(:compact)}")
+      end
+
+      def self.reset_tmpfile!
+        @tmpdir_path = nil
+      end
+    end
+  end
+
+  # Tools for managing hadoop configuration files ("hadoop.xml").
+  module HadoopConf
+    module HadoopOpt
+      def hadoop_opts
+        ['-conf', path]
+      end
+    end
+
+    # Wraps an extant hadoop configuration file and provides
+    # an interface compatible with the critical parts of the
+    # Static sibling class so they may be used interchangeably
+    # by runners when determining hadoop options.
+    class Static
+      attr_reader :path
+
+      include HadoopOpt
+
+      # Given a path, expands it ti
+      def initialize(path)
+        @path = ::File.expand_path(path)
+      end
+
+      def close
+      end
+    end
+  end
+
   # Tools for managing hive initialization files ("hiverc").
   module HiveRC
     module HiveOpt
@@ -32,7 +83,6 @@ module Hadupils::Extensions
       attr_reader :file
 
       include HiveOpt
-      require 'tempfile'
 
       # This will allow us to change what handles the dynamic files.
       def self.file_handler=(handler)
@@ -87,6 +137,12 @@ module Hadupils::Extensions
       end
     end
 
+    def hadoop_conf(&block)
+      @scope.instance_eval do
+        @hadoop_conf_block = block
+      end
+    end
+
     def hiverc(&block)
       @scope.instance_eval do
         @hiverc_block = block
@@ -110,12 +166,16 @@ module Hadupils::Extensions
       assets
     end
 
+    def hadoop_confs
+      []
+    end
+
     def hivercs
       []
     end
 
     def self.gather_assets(directory)
-      if not directory.nil?
+      if directory
         Hadupils::Assets.assets_in(directory)
       else
         []
@@ -179,12 +239,26 @@ module Hadupils::Extensions
       []
     end
 
+    def hadoop_conf_path
+      ::File.join(path, 'hadoop.xml') if path
+    end
+
     def hiverc_path
-      ::File.join(path, 'hiverc')
+      ::File.join(path, 'hiverc') if path
+    end
+
+    def hadoop_conf?
+      hadoop_conf_path ? ::File.file?(hadoop_conf_path) : false
     end
 
     def hiverc?
-      ::File.file? hiverc_path
+      hiverc_path ? ::File.file?(hiverc_path) : false
+    end
+
+    def hadoop_confs
+      r = []
+      r << Hadupils::Extensions::HadoopConf::Static.new(hadoop_conf_path) if hadoop_conf?
+      r
     end
 
     def hivercs

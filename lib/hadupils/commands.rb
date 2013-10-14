@@ -1,5 +1,5 @@
 module Hadupils::Commands
-  def self.run(command, params)
+  def self.run(command, params=[])
     handler = handler_for command
     handler.run params
   end
@@ -18,7 +18,7 @@ module Hadupils::Commands
   end
 
   class SimpleCommand
-    def self.run(params)
+    def self.run(params=[])
       self.new.run params
     end
   end
@@ -56,4 +56,52 @@ module Hadupils::Commands
   end
 
   register_handler :hive, Hive
+
+  class Hadoop < SimpleCommand
+    include HadoopExt
+    include UserConf
+
+    def assemble_parameters(parameters)
+      @hadoop_ext = Hadupils::Extensions::Static.new(Hadupils::Search.hadoop_assets)
+      hadoop_cmd      = parameters[0...1]
+      hadoop_cmd_opts  = parameters[1..-1] || []
+
+      if %w(fs dfs).include? parameters[0]
+        hadoop_cmd + user_config.hadoop_confs + hadoop_ext.hadoop_confs + hadoop_cmd_opts
+      else
+        # TODO: Assemble command line params to pkg assets/code for submitting jobs, for i.e.
+        hadoop_cmd + user_config.hadoop_confs + hadoop_ext.hadoop_confs + hadoop_cmd_opts
+      end
+    end
+
+    def run(parameters)
+      Hadupils::Runners::Hadoop.run assemble_parameters(parameters)
+    end
+  end
+
+  register_handler :hadoop, Hadoop
+
+  class MkTmpFile < SimpleCommand
+    def run(parameters)
+      Hadupils::Runners::MkTmpFile.run parameters
+    end
+  end
+
+  register_handler :mktemp, MkTmpFile
+
+  class WithTmpDir < SimpleCommand
+    def run(parameters)
+      Hadupils::Runners::WithTmpDir.run parameters
+    end
+  end
+
+  register_handler :withtmpdir, WithTmpDir
+
+  class RmFile < SimpleCommand
+    def run(parameters)
+      Hadupils::Runners::RmFile.run parameters
+    end
+  end
+
+  register_handler :rm, RmFile
 end

@@ -1,3 +1,5 @@
+using Hadupils::Hacks unless RUBY_VERSION < '2.0'
+
 class Hadupils::CommandsTest < Test::Unit::TestCase
   context Hadupils::Commands do
     context 'run singleton method' do
@@ -26,16 +28,190 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
       end
     end
 
+    context 'Hadoop' do
+      setup do
+        @klass = Hadupils::Commands::Hadoop
+      end
+
+      should 'register with :hadoop name' do
+        handlers = [:hadoop]
+        run_handler_assertions_for handlers
+      end
+
+      should 'have a #run singleton method that dispatches to an instance #run' do
+        @klass.expects(:new).with.returns(instance = mock())
+        instance.expects(:run).with(params = mock()).returns(result = mock())
+        assert_equal result, @klass.run(params)
+      end
+
+      should 'have a Static extension based on a search for hadoop-ext' do
+        Hadupils::Search.expects(:hadoop_assets).with.returns(conf = mock())
+        Hadupils::Extensions::Static.expects(:new).with(conf).returns(extension = mock())
+        hadoop_ext = Hadupils::Extensions::Static.new(Hadupils::Search.hadoop_assets)
+        cmd = @klass.new
+        cmd.stubs(:hadoop_ext).with.returns(hadoop_ext)
+        assert_equal extension, cmd.hadoop_ext
+        # This should cause failure if the previous result wasn't
+        # cached internally (by breaking expectations).
+        cmd.hadoop_ext
+      end
+
+      should 'have a Static extensions based on user config' do
+        Hadupils::Search.expects(:user_config).with.returns(conf = mock())
+        Hadupils::Extensions::Static.expects(:new).with(conf).returns(extension = mock())
+        cmd = @klass.new
+        assert_equal extension, cmd.user_config
+        # Fails on expectations if previous result wasn't cached.
+        cmd.user_config
+      end
+
+      context '#run' do
+        setup do
+          @command = @klass.new
+          @command.stubs(:user_config).with.returns(@user_config = mock())
+          @command.stubs(:hadoop_ext).with.returns(@hadoop_ext = mock())
+          @runner_class = Hadupils::Runners::Hadoop
+        end
+
+        context 'with user config and hadoop_confs' do
+          setup do
+            @user_config.stubs(:hadoop_confs).returns(@user_config_hadoop_confs = [mock(), mock()])
+            @hadoop_ext.stubs(:hadoop_confs).returns(@hadoop_ext_hadoop_confs = [mock(), mock(), mock()])
+          end
+
+          should 'apply hadoop_conf options to hadoop runner call' do
+            @runner_class.expects(:run).with(@user_config_hadoop_confs +
+                                             @hadoop_ext_hadoop_confs).returns(result = mock())
+            assert_equal result, @command.run([])
+          end
+
+          should 'insert hadoop_conf options into position 1 of given params array to hadoop runner call' do
+            params = [mock(), mock()]
+            @runner_class.expects(:run).with(params[0...1] +
+                                             @user_config_hadoop_confs +
+                                             @hadoop_ext_hadoop_confs +
+                                             params[1..-1]).returns(result = mock())
+            assert_equal result, @command.run(params)
+          end
+        end
+
+        context 'without hadoop_confs' do
+          setup do
+            @user_config.stubs(:hadoop_confs).returns([])
+            @hadoop_ext.stubs(:hadoop_confs).returns([])
+          end
+
+          should 'pass params unchanged through to hadoop runner call' do
+            @runner_class.expects(:run).with(params = [mock(), mock()]).returns(result = mock())
+            assert_equal result, @command.run(params)
+          end
+
+          should 'handle empty params' do
+            @runner_class.expects(:run).with([]).returns(result = mock())
+            assert_equal result, @command.run([])
+          end
+        end
+      end
+    end
+
+    context 'MkTempFile' do
+      setup do
+        @klass = Hadupils::Commands::MkTmpFile
+      end
+
+      should 'register with :mktemp name' do
+        handlers = [:mktemp]
+        run_handler_assertions_for handlers
+      end
+
+      should 'have a #run singleton method that dispatches to an instance #run' do
+        @klass.expects(:new).with.returns(instance = mock())
+        instance.expects(:run).with(params = mock()).returns(result = mock())
+        assert_equal result, @klass.run(params)
+      end
+
+      context '#run' do
+        setup do
+          @command = @klass.new
+          @runner_class = Hadupils::Runners::MkTmpFile
+        end
+
+        should 'with command mktemp' do
+          params = [mock(), mock(), mock()]
+          Hadupils::Runners::MkTmpFile.expects(:run).with(params).returns(result = mock())
+          assert_equal result, @command.run(params)
+        end
+      end
+    end
+
+    context 'WithTempDir' do
+      setup do
+        @klass = Hadupils::Commands::WithTmpDir
+      end
+
+      should 'register with :withtmpdir name' do
+        handlers = [:withtmpdir]
+        run_handler_assertions_for handlers
+      end
+
+      should 'have a #run singleton method that dispatches to an instance #run' do
+        @klass.expects(:new).with.returns(instance = mock())
+        instance.expects(:run).with(params = mock()).returns(result = mock())
+        assert_equal result, @klass.run(params)
+      end
+
+      context '#run' do
+        setup do
+          @command = @klass.new
+          @runner_class = Hadupils::Runners::WithTmpDir
+        end
+
+        should 'with command withtmpdir' do
+          params = [mock(), mock(), mock()]
+          Hadupils::Runners::WithTmpDir.expects(:run).with(params).returns(result = mock())
+          assert_equal result, @command.run(params)
+        end
+      end
+    end
+
+    context 'RmFile' do
+      setup do
+        @klass = Hadupils::Commands::RmFile
+      end
+
+      should 'register with :rm name' do
+        handlers = [:rm]
+        run_handler_assertions_for handlers
+      end
+
+      should 'have a #run singleton method that dispatches to an instance #run' do
+        @klass.expects(:new).with.returns(instance = mock())
+        instance.expects(:run).with(params = mock()).returns(result = mock())
+        assert_equal result, @klass.run(params)
+      end
+
+      context '#run' do
+        setup do
+          @command = @klass.new
+          @runner_class = Hadupils::Runners::RmFile
+        end
+
+        should 'with command rm' do
+          params = [mock(), mock(), mock()]
+          Hadupils::Runners::RmFile.expects(:run).with(params).returns(result = mock())
+          assert_equal result, @command.run(params)
+        end
+      end
+    end
+
     context 'Hive' do
       setup do
         @klass = Hadupils::Commands::Hive
       end
 
       should 'register with :hive name' do
-        assert_same @klass, Hadupils::Commands.handler_for(:hive)
-        assert_same @klass, Hadupils::Commands.handler_for(:HivE)
-        assert_same @klass, Hadupils::Commands.handler_for('hive')
-        assert_same @klass, Hadupils::Commands.handler_for('hIVe')
+        handlers = [:hive]
+        run_handler_assertions_for handlers
       end
 
       should 'have a #run singleton method that dispatches to an instance #run' do
@@ -207,21 +383,21 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
 
         should 'produce a valid set of parameters and hivercs' do
           Kernel.stubs(:system).with() do |*args|
-            args[0] == {'HIVE_AUX_JARS_PATH' => @hive_aux_jars_path_val} and
-            args[1] == @hive_prog and
-            args[2] == '-i' and
-            File.open(args[3], 'r').read == @static_hiverc_content and
-            args[4] == '-i' and
-            File.open(args[5], 'r').read == @dynamic_hiverc_content and
-            args[6] == '-i' and
-            File.open(args[7], 'r').read == @hive_exts[:one][:dynamic_hiverc_content] and
-            args[8] == '-i' and
-            File.open(args[9], 'r').read == @hive_exts[:one][:static_hiverc_content] and
-            args[10] == '-i' and
-            File.open(args[11], 'r').read == @hive_exts[:two][:dynamic_hiverc_content] and
-            args[12] == '-i' and
-            File.open(args[13], 'r').read == @hive_exts[:two][:static_hiverc_content] and
-            args[14] == '--hiveconf' and
+            args[0] == {'HIVE_AUX_JARS_PATH' => @hive_aux_jars_path_val} &&
+            args[1] == @hive_prog &&
+            args[2] == '-i' &&
+            File.open(args[3], 'r').read == @static_hiverc_content &&
+            args[4] == '-i' &&
+            File.open(args[5], 'r').read == @dynamic_hiverc_content &&
+            args[6] == '-i' &&
+            File.open(args[7], 'r').read == @hive_exts[:one][:dynamic_hiverc_content] &&
+            args[8] == '-i' &&
+            File.open(args[9], 'r').read == @hive_exts[:one][:static_hiverc_content] &&
+            args[10] == '-i' &&
+            File.open(args[11], 'r').read == @hive_exts[:two][:dynamic_hiverc_content] &&
+            args[12] == '-i' &&
+            File.open(args[13], 'r').read == @hive_exts[:two][:static_hiverc_content] &&
+            args[14] == '--hiveconf' &&
             args[15] == 'my.foo=your.fu'
           end
           Hadupils::Commands.run 'hive', ['--hiveconf', 'my.foo=your.fu']
@@ -233,5 +409,14 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
       end
     end
   end
-end
 
+  def run_handler_assertions_for(handlers)
+    handlers.each do |handler|
+      handler = handler.to_s.downcase
+      assert_same @klass, Hadupils::Commands.handler_for(handler.to_sym)
+      assert_same @klass, Hadupils::Commands.handler_for(handler.randcase.to_sym)
+      assert_same @klass, Hadupils::Commands.handler_for(handler)
+      assert_same @klass, Hadupils::Commands.handler_for(handler.randcase)
+    end
+  end
+end

@@ -1,3 +1,5 @@
+require 'stringio'
+
 class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
   shared_context :provide_hive_ext do
     setup do
@@ -235,8 +237,6 @@ class Hadupils::Extensions::HiveTest < Test::Unit::TestCase
     end
 
     context 'build_archive singleton method' do
-      require 'stringio'
-
       setup do
         ::Dir.mkdir(@some_dir = @tempdir.full_path('some_stuff'))
         ::Dir.mkdir(@other_dir = @tempdir.full_path('other_stuff'))
