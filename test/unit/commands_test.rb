@@ -114,96 +114,6 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
       end
     end
 
-    context 'MkTempFile' do
-      setup do
-        @klass = Hadupils::Commands::MkTmpFile
-      end
-
-      should 'register with :mktemp name' do
-        handlers = [:mktemp]
-        run_handler_assertions_for handlers
-      end
-
-      should 'have a #run singleton method that dispatches to an instance #run' do
-        @klass.expects(:new).with.returns(instance = mock())
-        instance.expects(:run).with(params = mock()).returns(result = mock())
-        assert_equal result, @klass.run(params)
-      end
-
-      context '#run' do
-        setup do
-          @command = @klass.new
-          @runner_class = Hadupils::Runners::MkTmpFile
-        end
-
-        should 'with command mktemp' do
-          params = [mock(), mock(), mock()]
-          Hadupils::Runners::MkTmpFile.expects(:run).with(params).returns(result = mock())
-          assert_equal result, @command.run(params)
-        end
-      end
-    end
-
-    context 'WithTempDir' do
-      setup do
-        @klass = Hadupils::Commands::WithTmpDir
-      end
-
-      should 'register with :withtmpdir name' do
-        handlers = [:withtmpdir]
-        run_handler_assertions_for handlers
-      end
-
-      should 'have a #run singleton method that dispatches to an instance #run' do
-        @klass.expects(:new).with.returns(instance = mock())
-        instance.expects(:run).with(params = mock()).returns(result = mock())
-        assert_equal result, @klass.run(params)
-      end
-
-      context '#run' do
-        setup do
-          @command = @klass.new
-          @runner_class = Hadupils::Runners::WithTmpDir
-        end
-
-        should 'with command withtmpdir' do
-          params = [mock(), mock(), mock()]
-          Hadupils::Runners::WithTmpDir.expects(:run).with(params).returns(result = mock())
-          assert_equal result, @command.run(params)
-        end
-      end
-    end
-
-    context 'RmFile' do
-      setup do
-        @klass = Hadupils::Commands::RmFile
-      end
-
-      should 'register with :rm name' do
-        handlers = [:rm]
-        run_handler_assertions_for handlers
-      end
-
-      should 'have a #run singleton method that dispatches to an instance #run' do
-        @klass.expects(:new).with.returns(instance = mock())
-        instance.expects(:run).with(params = mock()).returns(result = mock())
-        assert_equal result, @klass.run(params)
-      end
-
-      context '#run' do
-        setup do
-          @command = @klass.new
-          @runner_class = Hadupils::Runners::RmFile
-        end
-
-        should 'with command rm' do
-          params = [mock(), mock(), mock()]
-          Hadupils::Runners::RmFile.expects(:run).with(params).returns(result = mock())
-          assert_equal result, @command.run(params)
-        end
-      end
-    end
-
     context 'Hive' do
       setup do
         @klass = Hadupils::Commands::Hive
@@ -407,7 +317,140 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
           ::Dir.chdir @pwd
         end
       end
+      context 'MkTempFile' do
+        setup do
+          @klass = Hadupils::Commands::MkTmpFile
+        end
+
+        should 'register with :mktemp name' do
+          handlers = [:mktemp]
+          run_handler_assertions_for handlers
+        end
+
+        should 'have a #run singleton method that dispatches to an instance #run' do
+          @klass.expects(:new).with.returns(instance = mock())
+          instance.expects(:run).with(params = mock()).returns(result = mock())
+          assert_equal result, @klass.run(params)
+        end
+
+        context '#run' do
+          setup do
+            @command = @klass.new
+            Hadupils::Runners::Hadoop.stubs(:base_runner).returns(@hadoop_path = mock().to_s + '-hadoop')
+          end
+
+          should 'provide invocation for bare mktemp if given empty parameters' do
+            tmpdir_path = mock().to_s
+            Hadupils::Extensions::Dfs::TmpFile.expects(:tmpfile_path).returns(tmpdir_path)
+            Kernel.expects(:system).with(@hadoop_path, 'fs', '-touchz', tmpdir_path).returns(0)
+            Kernel.expects(:system).with(@hadoop_path, 'fs', '-chmod', '700', tmpdir_path).returns(0)
+            assert_equal 0, @command.run([])
+          end
+
+          should 'provide invocation for mktemp if given with -d flag parameter' do
+            tmpdir_path = mock().to_s
+            Hadupils::Extensions::Dfs::TmpFile.expects(:tmpfile_path).returns(tmpdir_path)
+            Kernel.expects(:system).with(@hadoop_path, 'fs', '-mkdir', tmpdir_path).returns(0)
+            Kernel.expects(:system).with(@hadoop_path, 'fs', '-chmod', '700', tmpdir_path).returns(0)
+            assert_equal 0, @command.run(['-d'])
+          end
+        end
+      end
+
+      context 'RmFile' do
+        setup do
+          @klass = Hadupils::Commands::RmFile
+        end
+
+        should 'register with :rm name' do
+          handlers = [:rm]
+          run_handler_assertions_for handlers
+        end
+
+        should 'have a #run singleton method that dispatches to an instance #run' do
+          @klass.expects(:new).with.returns(instance = mock())
+          instance.expects(:run).with(params = mock()).returns(result = mock())
+          assert_equal result, @klass.run(params)
+        end
+
+        context '#run' do
+          setup do
+            @command = @klass.new
+            Hadupils::Runners::Hadoop.stubs(:base_runner).returns(@hadoop_path = mock().to_s + '-hadoop')
+          end
+
+          should 'provide invocation for bare rm if given empty parameters' do
+            assert_equal 255, @klass.run([])
+          end
+
+          should 'provide invocation for rm if just tmpdir_path parameter' do
+            tmpdir_path = mock().to_s
+            Kernel.expects(:system).with(@hadoop_path, 'fs', '-rm', tmpdir_path).returns(0)
+            assert_equal 0, @klass.run([tmpdir_path])
+          end
+
+          should 'provide invocation for hadoop if just tmpdir_path with -r flag parameter' do
+            tmpdir_path = mock().to_s
+            Kernel.expects(:system).with(@hadoop_path, 'fs', '-rmr', tmpdir_path).returns(0)
+            assert_equal 0, @klass.run(['-r', tmpdir_path])
+          end
+        end
+
+        context 'WithTempDir' do
+          setup do
+            @klass = Hadupils::Commands::WithTmpDir
+          end
+
+          should 'register with :withtmpdir name' do
+            handlers = [:withtmpdir]
+            run_handler_assertions_for handlers
+          end
+
+          should 'have a #run singleton method that dispatches to an instance #run' do
+            @klass.expects(:new).with.returns(instance = mock())
+            instance.expects(:run).with(params = mock()).returns(result = mock())
+            assert_equal result, @klass.run(params)
+          end
+
+          context '#run' do
+            setup do
+              @command = @klass.new
+              Hadupils::Runners::Hadoop.stubs(:base_runner).returns(@hadoop_path = mock().to_s + '-hadoop')
+            end
+
+            should 'provide invocation for withtmpdir if given parameters for shell subcommand' do
+              tmpdir_path = mock().to_s
+              run_common_subcommand_assertions_with tmpdir_path
+              Kernel.expects(:system).with({'HADUPILS_TMPDIR_PATH' => tmpdir_path}, '/path/to/my_wonderful_script.sh').returns(0)
+              Kernel.expects(:system).with(@hadoop_path, 'fs', '-rmr', tmpdir_path).returns(0)
+              assert_equal 0, @klass.run(['/path/to/my_wonderful_script.sh'])
+            end
+
+            should 'provide invocation for withtmpdir if given parameters for shell subcommand (another hadupils command)' do
+              tmpdir_path = mock().to_s
+              run_common_subcommand_assertions_with tmpdir_path
+              Kernel.expects(:system).with({'HADUPILS_TMPDIR_PATH' => tmpdir_path}, 'hadupils hadoop ls /tmp').returns(0)
+              Kernel.expects(:system).with(@hadoop_path, 'fs', '-rmr', tmpdir_path).returns('')
+              assert_equal 0, @klass.run(['hadupils hadoop ls /tmp'])
+            end
+
+            should 'provide invocation for withtmpdir if given parameters for shell subcommand with nil result' do
+              tmpdir_path = mock().to_s
+              run_common_subcommand_assertions_with tmpdir_path
+              Kernel.expects(:system).with({'HADUPILS_TMPDIR_PATH' => tmpdir_path}, '/path/to/my_wonderful_script.sh').returns(nil)
+              assert_equal 255, @klass.run(['/path/to/my_wonderful_script.sh'])
+            end
+          end
+        end
+      end
     end
+  end
+
+  def run_common_subcommand_assertions_with(tmpdir_path)
+    Hadupils::Extensions::Dfs::TmpFile.expects(:tmpfile_path).returns(tmpdir_path)
+    Hadupils::Extensions::Dfs::TmpFile.expects(:tmpfile_path).returns(tmpdir_path)
+    Kernel.expects(:system).with(@hadoop_path, 'fs', '-mkdir', tmpdir_path).returns(0)
+    Kernel.expects(:system).with(@hadoop_path, 'fs', '-chmod', '700', tmpdir_path).returns(0)
   end
 
   def run_handler_assertions_for(handlers)
