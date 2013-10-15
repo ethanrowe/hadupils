@@ -6,6 +6,10 @@ module Hadupils::Runners
       @params = params
     end
 
+    def self.run(*params)
+      self.new(*params).wait!
+    end
+
     def command; end
 
     def execute!
@@ -35,19 +39,39 @@ module Hadupils::Runners
     def wait!
       @last_result = execute!
       @last_status = $?
+      last_exitstatus
+    end
+
+    def last_exitstatus
       if @last_result.nil?
         255
       else
         @last_status.exitstatus
       end
     end
+  end
 
-    def self.run(*params)
-      self.new(*params).wait!
+  class Hadoop < Base
+    class << self; attr_writer :base_runner; end
+
+    def self.base_runner
+      @base_runner || ::File.join(ENV['HADOOP_HOME'], 'bin', 'hadoop')
+    end
+
+    def command
+      params.inject([self.class.base_runner]) do |result, param|
+        if param.respond_to? :hadoop_opts
+          result + param.hadoop_opts
+        else
+          result << param
+        end
+      end
     end
   end
 
   class Hive < Base
+    class << self; attr_writer :base_runner; end
+
     def initialize(params, hive_aux_jars_path='')
       super(params)
       @hive_aux_jars_path = hive_aux_jars_path
@@ -55,10 +79,6 @@ module Hadupils::Runners
 
     def self.base_runner
       @base_runner || ::File.join(ENV['HIVE_HOME'], 'bin', 'hive')
-    end
-
-    def self.base_runner=(runner_path)
-      @base_runner = runner_path
     end
 
     def command
@@ -72,14 +92,20 @@ module Hadupils::Runners
     end
 
     def env_overrides
-      e = {}
+      env = {}
       settings = [@hive_aux_jars_path, ::ENV['HIVE_AUX_JARS_PATH']].reject do |val|
-        val.nil? or val.strip == ''
+        val.nil? || val.strip.empty?
       end
       if settings.length > 0
-        e['HIVE_AUX_JARS_PATH'] = settings.join(',')
+        env['HIVE_AUX_JARS_PATH'] = settings.join(',')
       end
-      e
+      env
+    end
+  end
+
+  class Subcommand < Base
+    def command
+      params
     end
   end
 end
