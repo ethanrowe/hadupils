@@ -4,6 +4,7 @@ require 'test/unit'
 require 'shoulda-context'
 require 'mocha/setup'
 require 'tempfile'
+require 'pathname'
 require 'hadupils'
 
 # Add tempdir niceties to Test::Unit::TestCase
@@ -35,7 +36,7 @@ class Test::Unit::TestCase
   def self.tempdir_context(name, &block)
     context name do
       setup do
-        @tempdir = Test::Unit::TestCase::DirWrapper.new(::File.expand_path(::Dir.mktmpdir))
+        @tempdir = Test::Unit::TestCase::DirWrapper.new(::Pathname.new(::File.expand_path(::Dir.mktmpdir)).realpath.to_s)
       end
 
       teardown do

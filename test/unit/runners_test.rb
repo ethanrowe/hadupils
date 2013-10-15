@@ -85,6 +85,49 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
     end
   end
 
+  context Hadupils::Runners::Hadoop do
+    setup do
+      @klass = Hadupils::Runners::Hadoop
+    end
+
+    should 'be a runner' do
+      assert_kind_of Hadupils::Runners::Base, @klass.new([])
+    end
+
+    should 'use $HADOOP_HOME/bin/hadoop as the base runner' do
+      ENV.expects(:[]).with('HADOOP_HOME').returns(home = mock().to_s)
+      assert_equal ::File.join(home, 'bin', 'hadoop'),
+                   @klass.base_runner
+    end
+
+    context '#command' do
+      setup do
+        @klass.stubs(:base_runner).returns(@hadoop_path = mock().to_s + '-hadoop')
+      end
+
+      should 'provide invocation for bare hadoop if given empty parameters' do
+        assert_equal [@hadoop_path], @klass.new([]).command
+      end
+
+      should 'provide invocation for hadoop with all given parameters' do
+        params = [mock().to_s, mock().to_s, mock().to_s, mock().to_s]
+        assert_equal [@hadoop_path] + params,
+                     @klass.new(params).command
+      end
+
+      should 'provide args for hadoop with :hadoop_opts on supporting params' do
+        p1 = mock()
+        p1.expects(:hadoop_opts).with.returns(p1_opts = ['-conf', mock().to_s])
+        p2 = mock()
+        p2.expects(:hadoop_opts).with.returns(p2_opts = ['-conf', mock().to_s])
+        s1 = mock().to_s
+        s2 = mock().to_s
+        assert_equal [@hadoop_path, s1] + p1_opts + p2_opts + [s2],
+                     @klass.new([s1, p1, p2, s2]).command
+      end
+    end
+  end
+
   context Hadupils::Runners::Hive do
     setup do
       @klass = Hadupils::Runners::Hive

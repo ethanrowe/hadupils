@@ -1,3 +1,6 @@
+require 'tempfile'
+require 'fileutils'
+
 module Hadupils::Extensions
 
   # Hive-targeted extensions derived from filesystem layout
@@ -204,8 +207,6 @@ module Hadupils::Extensions
         end
       end
 
-      require 'tempfile'
-      require 'fileutils'
       ::Dir.mktmpdir do |workdir|
         basenames = dist.collect do |src|
           FileUtils.cp src, File.join(workdir, File.basename(src))

@@ -1,3 +1,6 @@
+require 'rubygems/package'
+require 'zlib'
+
 class Hadupils::ExtensionsTest < Test::Unit::TestCase
   context Hadupils::Extensions::Base do
     context 'initialization with nil path' do
@@ -234,8 +237,6 @@ class Hadupils::ExtensionsTest < Test::Unit::TestCase
 
       context 'ArchivePath extension' do
         setup do
-          require 'rubygems/package'
-          require 'zlib'
           @klass = Hadupils::Extensions::FlatArchivePath
           @bin_archives = %w(one two).collect do |name|
             @tempdir.file("zarchive-with-bin-#{name}.tar.gz") do |f|

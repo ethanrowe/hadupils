@@ -1,7 +1,8 @@
+require 'rubygems/package'
+require 'zlib'
+
 module Hadupils::Util
   def self.read_archive(archive_path)
-    require 'rubygems/package'
-    require 'zlib'
     Zlib::GzipReader.open(archive_path) do |zlib|
       Gem::Package::TarReader.new(zlib) do |tar|
         tar.rewind

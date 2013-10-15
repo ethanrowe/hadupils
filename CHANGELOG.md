@@ -44,3 +44,15 @@
   Helper method for assembling gzipped archives the contents of which
   are hive-ext compatible.
 
+### 0.5.0
+* Introduced a hadoop command enforcing user config and hadoop-ext
+  configuration files (hadoop.xml) that calls the hadoop runner
+* Introduced the following commands and runners that utilize the hadoop
+  runner (to work against the DFS): mktemp, withtmpdir and rm
+* Support for hadoop_confs in Hadupils::Extensions
+* Introduced Hadupils::Extensions::Dfs::TmpFile
+* Introduced Hadupils::Hacks module for String Refinements (self.randcase)
+  for Ruby 2+ and Monkey Patching for the String class for Ruby < 2.0
+* Some refactoring and fixed a bug with the specs for Mac OS X
+* Tweaked old unit tests and added new ones for the new features
+* Updated the README with examples
