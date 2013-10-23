@@ -4,4 +4,4 @@
 
 require 'hadupils'
 
-exit Hadupils::Commands.run ARGV[0], ARGV[1..-1]
+exit Hadupils::Commands.run(ARGV[0], ARGV[1..-1])[1]
