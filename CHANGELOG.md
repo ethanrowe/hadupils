@@ -53,6 +53,19 @@
 * Introduced Hadupils::Extensions::Dfs::TmpFile
 * Introduced Hadupils::Hacks module for String Refinements (self.randcase)
   for Ruby 2+ and Monkey Patching for the String class for Ruby < 2.0
+* Introduced $HADUPILS_BASE_TMP_PATH and $HADUPILS_TMPDIR_PATH for use with
+  commands: mktemp, withtmpdir and rm
 * Some refactoring and fixed a bug with the specs for Mac OS X
 * Tweaked old unit tests and added new ones for the new features
 * Updated the README with examples
+
+### 0.6.0
+* Renamed $HADUPILS_BASE_TMP_PATH to $HADUPILS_TMP_PATH (less typing)
+* Introduced $HADUPILS_TMP_TTL for use with command: cleanup
+* Introduced Hadupils::Commands::Cleanup to identify and remove old hadupils tmp DFS
+  directories/files where all files within any hadupils-tmpdir* in $HADUPILS_TMP_PATH
+  are older than $HADUPILS_TMP_TTL, the TTL (Time.now.utc - $HADUPILS_TMP_TTL)
+* The Hadupils::Runnders::Base.new.execute! method now uses Open3.capture2 or Kernel.system
+* Fixed 1.8.7 compatibility bug with the Kernel.system call in
+  Hadupils::Extensions::Hive::AuxJarsPath.build_archive
+* Some refactoring

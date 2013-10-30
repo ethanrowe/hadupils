@@ -1,7 +1,83 @@
 require 'uuid'
+require 'open3'
 require 'tempfile'
 
 module Hadupils::Extensions
+  # Tools for managing shell commands/output performed by the runners
+  module Runners
+    module Shell
+      def self.command(*command_list)
+        opts      = {}
+        stdout    = nil
+        stderr    = nil
+        status    = nil
+
+        begin
+          if RUBY_VERSION < '1.9'
+            Open3.popen3(*command_list) do |i, o, e|
+              stdout = o.read
+              stderr = e.read
+            end
+            status = $?
+            $stdout.puts stdout unless stdout.nil? || stdout.empty? || Shell.silence_stdout?
+            $stderr.puts stderr unless stderr.nil? || stderr.empty?
+            stdout = nil unless capture_stdout?
+            stderr = nil unless capture_stderr?
+          else
+            stdout_rd, stdout_wr  = IO.pipe     if capture_stdout?
+            stderr_rd, stderr_wr  = IO.pipe     if capture_stderr?
+            opts[:out]            = stdout_wr   if capture_stdout?
+            opts[:err]            = stderr_wr   if capture_stderr?
+
+            # NOTE: eval prevents Ruby 1.8.7 from throwing a syntax error on Ruby 1.9+ syntax
+            result = eval 'Kernel.system(*command_list, opts)'
+            status = result ? $? : nil
+            if capture_stdout?
+              stdout_wr.close
+              stdout = stdout_rd.read
+              stdout_rd.close
+              $stdout.puts stdout unless stdout.nil? || stdout.empty? || Shell.silence_stdout?
+            end
+            if capture_stderr?
+              stderr_wr.close
+              stderr = stderr_rd.read
+              stderr_rd.close
+              $stderr.puts stderr unless stderr.nil? || stderr.empty?
+            end
+          end
+          [stdout, stderr, status]
+        rescue Errno::ENOENT => e
+          $stderr.puts e
+          [stdout, stderr, nil]
+        end
+      end
+
+      def self.capture_stderr?
+        @capture_stderr
+      end
+
+      def self.capture_stderr=(value)
+        @capture_stderr = value
+      end
+
+      def self.capture_stdout?
+        @capture_stdout || Shell.silence_stdout?
+      end
+
+      def self.capture_stdout=(value)
+        @capture_stdout = value
+      end
+
+      def self.silence_stdout?
+        @silence_stdout
+      end
+
+      def self.silence_stdout=(value)
+        @silence_stdout = value
+      end
+    end
+  end
+
   # Tools for managing tmp files in the hadoop dfs
   module Dfs
     module TmpFile
@@ -9,12 +85,16 @@ module Hadupils::Extensions
         @uuid ||= UUID.new
       end
 
+      def self.tmp_ttl
+        @tmp_ttl ||= (ENV['HADUPILS_TMP_TTL'] || '86400').to_i
+      end
+
       def self.tmp_path
-        @tmp_path ||= (ENV['HADUPILS_BASE_TMP_PATH'] || '/tmp')
+        @tmp_path ||= (ENV['HADUPILS_TMP_PATH'] || '/tmp')
       end
 
       def self.tmpfile_path
-        @tmpdir_path ||= ::File.join(tmp_path, "hadupils-tmp-#{uuid.generate(:compact)}")
+        @tmpfile_path ||= ::File.join(tmp_path, "hadupils-tmp-#{uuid.generate(:compact)}")
       end
 
       def self.reset_tmpfile!

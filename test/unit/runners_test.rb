@@ -1,4 +1,6 @@
 class Hadupils::RunnersTest < Test::Unit::TestCase
+  include Hadupils::Extensions::Runners
+
   context Hadupils::Runners::Base do
     setup do
       @runner = Hadupils::Runners::Base.new(@params = mock())
@@ -21,20 +23,22 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
         end
 
         should 'assemble system call via command method' do
-          Kernel.expects(:system).with(*@command).returns(true)
           $?.stubs(:exitstatus).with.returns(mock())
+          last_status = $?
+          Shell.stubs(:command).with(*@command).returns([nil, nil, last_status])
           @runner.wait!
         end
 
         should 'return 255 when system returns nil' do
-          Kernel.stubs(:system).returns(nil)
-          assert_equal 255, @runner.wait!
+          Shell.stubs(:command).returns([nil, nil, nil])
+          assert_equal [nil, 255], @runner.wait!
         end
 
         should 'return Process::Status#exitstatus when non-nil system result' do
-          Kernel.stubs(:system).returns(true)
           $?.stubs(:exitstatus).with.returns(status = mock())
-          assert_equal status, @runner.wait!
+          last_status = $?
+          Shell.stubs(:command).returns([nil, nil, last_status])
+          assert_equal [nil, status], @runner.wait!
         end
       end
 
@@ -50,7 +54,7 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
 
         should 'handle command without env hash normally' do
           @runner.expects(:command).with.returns(@command)
-          Kernel.expects(:system).with(*@command).returns(true)
+          Open3.expects(:popen3).with(*@command)
           $?.stubs(:exitstatus).with.returns(mock)
           @runner.wait!
         end
@@ -66,7 +70,8 @@ class Hadupils::RunnersTest < Test::Unit::TestCase
           $?.stubs(:exitstatus).with.returns(mock)
           begin
             # Environment variable is overridden during system call
-            matcher = Kernel.expects(:system).with do |*args|
+            last_status = $?
+            matcher = Shell.stubs(:command).returns([nil, nil, last_status]).with do |*args|
               args == @command and ::ENV[var] == replacement and ::ENV[to_be_removed] == removal_val
             end
 

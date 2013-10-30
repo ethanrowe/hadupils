@@ -223,7 +223,12 @@ module Hadupils::Extensions
         end
 
         ::Dir.chdir(workdir) do |p|
-          Kernel.system 'tar', 'cz', *basenames, :out => io
+          Open3.popen3('tar', 'cz', *basenames) do |i, o, e|
+            stderr = e.read
+            stdout = o.read
+            $stderr.puts stderr unless stderr.empty?
+            io << stdout
+          end
         end
       end
       true

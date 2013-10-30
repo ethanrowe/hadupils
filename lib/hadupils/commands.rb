@@ -1,3 +1,5 @@
+require 'hadupils/commands/options'
+
 module Hadupils::Commands
   def self.run(command, params=[])
     handler = handler_for command
@@ -18,8 +20,14 @@ module Hadupils::Commands
   end
 
   class SimpleCommand
+    attr_reader :params
+
+    def initialize(params=[])
+      @params = params
+    end
+
     def self.run(params=[])
-      self.new.run params
+      self.new(params).run
     end
 
     def successful?(exitstatus)
@@ -50,9 +58,9 @@ module Hadupils::Commands
     include UserConf
 
     def assemble_parameters(parameters)
-      @hadoop_ext = Hadupils::Extensions::Static.new(Hadupils::Search.hadoop_assets)
+      @hadoop_ext     = Hadupils::Extensions::Static.new(Hadupils::Search.hadoop_assets)
       hadoop_cmd      = parameters[0...1]
-      hadoop_cmd_opts  = parameters[1..-1] || []
+      hadoop_cmd_opts = parameters[1..-1] || []
 
       if %w(fs dfs).include? parameters[0]
         hadoop_cmd + user_config.hadoop_confs + hadoop_ext.hadoop_confs + hadoop_cmd_opts
@@ -62,8 +70,8 @@ module Hadupils::Commands
       end
     end
 
-    def run(parameters)
-      Hadupils::Runners::Hadoop.run assemble_parameters(parameters)
+    def run
+      Hadupils::Runners::Hadoop.run assemble_parameters(params)
     end
   end
 
@@ -78,61 +86,71 @@ module Hadupils::Commands
       user_config.hivercs + hadoop_ext.hivercs + hive_ext.hivercs + parameters
     end
 
-    def run(parameters)
-      Hadupils::Runners::Hive.run assemble_parameters(parameters), hive_ext.hive_aux_jars_path
+    def run
+      Hadupils::Runners::Hive.run assemble_parameters(params), hive_ext.hive_aux_jars_path
     end
   end
 
   register_handler :hive, Hive
 
   class MkTmpFile < SimpleCommand
-    def run(parameters)
-      # Creates a new tmpdir and puts the full tmpdir_path to STDOUT
-      Hadupils::Extensions::Dfs::TmpFile.reset_tmpfile!
-      tmpdir_path = Hadupils::Extensions::Dfs::TmpFile.tmpfile_path
+    include Options::Directory
 
+    attr_reader :tmpdir_path
+
+    def initialize(params)
+      super(params)
+      Hadupils::Extensions::Dfs::TmpFile.reset_tmpfile!
+      @tmpdir_path = Hadupils::Extensions::Dfs::TmpFile.tmpfile_path
+    end
+
+    def run
       # Similar to shell mktemp, but for Hadoop DFS!
+      # Creates a new tmpdir and puts the full tmpdir_path to STDOUT
       # Makes a tmp file by default; a tmp directory with '-d' flag
-      fs_cmd = parameters[0] == '-d' ? '-mkdir' : '-touchz'
-      exitstatus = Hadupils::Commands::Hadoop.run ['fs', fs_cmd, tmpdir_path]
+      fs_cmd = perform_directory? ? '-mkdir' : '-touchz'
+      stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', fs_cmd, tmpdir_path]
       if successful? exitstatus
-        exitstatus = Hadupils::Commands::Hadoop.run ['fs', '-chmod', '700', tmpdir_path]
+        stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', '-chmod', '700', tmpdir_path]
         if successful? exitstatus
           puts tmpdir_path
         else
-          $stderr.puts "Failed to chmod 700 dfs tmpdir: #{tmpdir_path}"
+          $stderr.puts "Failed to dfs -chmod 700 dfs tmpdir: #{tmpdir_path}"
         end
       else
         $stderr.puts "Failed creating dfs tmpdir: #{tmpdir_path}"
       end
-      exitstatus
+      [nil, exitstatus]
     end
   end
 
   register_handler :mktemp, MkTmpFile
 
   class RmFile < SimpleCommand
-    def run(parameters)
+    include Hadupils::Helpers::TextHelper
+    include Options::Recursive
+
+    def assemble_parameters(parameters)
+      perform_recursive? ? ['-rmr', parameters[1..-1]] : ['-rm', parameters[0..-1]]
+    end
+
+    def run
       # Similar to shell rm, but for Hadoop DFS!
       # Removes files by default; removes directories recursively with '-r' flag
-      fs_cmd, tmp_dirs =
-        if parameters[0] == '-r'
-          ['-rmr', parameters[1..-1]]
-        else
-          ['-rm', parameters[0..-1]]
-        end
+      fs_cmd, tmp_dirs = assemble_parameters(params)
 
       if tmp_dirs.empty?
         $stderr.puts 'Failed to remove unspecified tmpdir(s), please specify tmpdir_path'
-        255
+        [nil, 255]
       else
-        exitstatus = Hadupils::Commands::Hadoop.run ['fs', fs_cmd, tmp_dirs].flatten
-        if successful? exitstatus
-          Hadupils::Extensions::Dfs::TmpFile.reset_tmpfile!
-        else
-          $stderr.puts "Failed to remove dfs tmpdir: #{tmp_dirs.join(' ')}"
+        stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', fs_cmd, tmp_dirs].flatten
+        unless successful? exitstatus
+          $stderr.puts "Failed to remove #{pluralize(tmp_dirs.length, 'tmpdir', 'tmpdirs')}"
+          tmp_dirs.each do |tmp_dir|
+            $stderr.puts tmp_dir
+          end
         end
-        exitstatus
+        [nil, exitstatus]
       end
     end
   end
@@ -140,32 +158,121 @@ module Hadupils::Commands
   register_handler :rm, RmFile
 
   class WithTmpDir < SimpleCommand
-    def run(parameters)
+    def run
       # Runs provided subcommand with tmpdir and cleans up tmpdir on an exitstatus of zero
-      if parameters.empty?
+      if params.empty?
         $stderr.puts 'Yeeaaahhh... sooo... you failed to provide a subcommand...'
-        255
+        [nil, 255]
       else
         # Let's create the tmpdir
-        exitstatus = Hadupils::Commands::MkTmpFile.run ['-d']
+        stdout, exitstatus = Hadupils::Commands::MkTmpFile.run ['-d']
         if successful? exitstatus
           tmpdir_path = Hadupils::Extensions::Dfs::TmpFile.tmpfile_path
-          parameters.unshift({'HADUPILS_TMPDIR_PATH' => tmpdir_path})
+          params.unshift({'HADUPILS_TMPDIR_PATH' => tmpdir_path})
 
           # Let's run the shell subcommand!
-          exitstatus = Hadupils::Runners::Subcommand.run parameters
+          stdout, exitstatus = Hadupils::Runners::Subcommand.run params
 
           if successful? exitstatus
             # Let's attempt to cleanup tmpdir_path
-            exitstatus = Hadupils::Commands::RmFile.run ['-r', tmpdir_path]
+            stdout, exitstatus = Hadupils::Commands::RmFile.run ['-r', tmpdir_path]
           else
-            $stderr.puts "Failed to run shell subcommand: #{parameters}"
+            $stderr.puts "Failed to run shell subcommand: #{params}"
           end
         end
-        exitstatus
+        Hadupils::Extensions::Dfs::TmpFile.reset_tmpfile!
+        [nil, exitstatus]
       end
     end
   end
 
   register_handler :withtmpdir, WithTmpDir
+
+  class Cleanup < SimpleCommand
+    include Hadupils::Extensions::Dfs
+    include Hadupils::Extensions::Runners
+    include Hadupils::Helpers::Dfs
+    include Hadupils::Helpers::TextHelper
+    include Options::DryRun
+
+    attr_accessor :expired_exitstatuses
+    attr_accessor :rm_exitstatuses
+    attr_reader   :tmp_path
+    attr_reader   :tmp_ttl
+
+    def initialize(params)
+      super(params)
+      @expired_exitstatuses = []
+      @rm_exitstatuses      = []
+      @tmp_path             = (perform_dry_run? ? params[1] : params[0]) || TmpFile.tmp_path
+      @tmp_ttl              = ((perform_dry_run? ? params[2] : params[1]) || TmpFile.tmp_ttl).to_i
+    end
+
+    def run
+      # Removes old hadupils tmp files/dirs where all files within a tmpdir are also older than the TTL
+      # User configurable by setting the ENV variable $HADUPILS_TMP_TTL, defaults to 86400 (last 24 hours)
+      # User may also perform a dry-run via a -n or a --dry-run flag
+
+      # Silence the Runner's shell STDOUT noise
+      Shell.silence_stdout = true
+
+      # Get candidate directories
+      stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', '-ls', tmp_path]
+      if successful? exitstatus
+        rm_array = []
+        dir_candidates(hadupils_tmpfiles(parse_ls(stdout)), tmp_ttl).each do |dir_candidate|
+          next unless has_expired? dir_candidate, tmp_ttl
+          rm_array << dir_candidate
+        end
+
+        exitstatus = expired_exitstatuses.all? {|expired_exitstatus| expired_exitstatus == 0} ? 0 : 255
+        if successful? exitstatus
+          puts "Found #{pluralize(rm_array.length, 'item', 'items')} to be removed recursively"
+          rm_array.each {|rm_item| puts rm_item }
+
+          unless perform_dry_run?
+            # Now want the user to see the Runner's shell STDOUT
+            Shell.silence_stdout = false
+
+            puts 'Removing...'
+            rm_array.each do |dir|
+              rm_stdout, rm_exitstatus = Hadupils::Commands::RmFile.run ['-r', dir]
+              rm_exitstatuses << rm_exitstatus
+              $stderr.puts "Failed to recursively remove: #{dir}" unless successful? rm_exitstatus
+            end
+          end
+          exitstatus = rm_exitstatuses.all? {|rm_exitstatus| rm_exitstatus == 0} ? 0 : 255
+        end
+      end
+      [nil, exitstatus]
+    end
+
+    def has_expired?(dir_candidate, ttl)
+      stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', '-count', dir_candidate]
+      expired_exitstatuses << exitstatus
+      if successful? exitstatus
+        parsed_count = parse_count(stdout)
+        if parsed_count.empty?
+          $stderr.puts "Failed to parse dfs -count for stdout: #{stdout}"
+          expired_exitstatuses << 255
+        elsif dir_empty? parsed_count[:file_count]
+          true
+        else
+          stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', '-ls', File.join(dir_candidate, '**', '*')]
+          expired_exitstatuses << exitstatus
+          if successful? exitstatus
+            all_expired? parse_ls(stdout), ttl
+          else
+            $stderr.puts "Failed to perform dfs -ls on path: #{File.join(dir_candidate, '**', '*')}"
+            false
+          end
+        end
+      else
+        $stderr.puts "Failed to perform dfs -count on path: #{dir_candidate}"
+        false
+      end
+    end
+  end
+
+  register_handler :cleanup, Cleanup
 end

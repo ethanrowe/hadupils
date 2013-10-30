@@ -1,6 +1,7 @@
 module Hadupils::Runners
   class Base
-    attr_reader :params, :last_result, :last_status
+    include Hadupils::Extensions::Runners
+    attr_reader :params, :last_stdout, :last_stderr, :last_status
 
     def initialize(params)
       @params = params
@@ -14,6 +15,7 @@ module Hadupils::Runners
 
     def execute!
       command_list = command
+
       if RUBY_VERSION < '1.9' and command_list[0].kind_of? Hash
         deletes = []
         overrides = {}
@@ -26,24 +28,23 @@ module Hadupils::Runners
             end
             ::ENV[key] = val
           end
-          Kernel.system(*command_list[1..-1])
+          Shell.command(*command_list[1..-1])
         ensure
           overrides.each {|key, val| ::ENV[key] = val }
           deletes.each {|key| ::ENV.delete key }
         end
       else
-        Kernel.system(*command_list)
+        Shell.command(*command_list)
       end
     end
 
     def wait!
-      @last_result = execute!
-      @last_status = $?
-      last_exitstatus
+      @last_stdout, @last_stderr, @last_status = execute!
+      [@last_stdout, last_exitstatus]
     end
 
     def last_exitstatus
-      if @last_result.nil?
+      if @last_status.nil?
         255
       else
         @last_status.exitstatus
