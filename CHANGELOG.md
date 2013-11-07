@@ -45,6 +45,7 @@
   are hive-ext compatible.
 
 ### 0.5.0
+
 * Introduced a hadoop command enforcing user config and hadoop-ext
   configuration files (hadoop.xml) that calls the hadoop runner
 * Introduced the following commands and runners that utilize the hadoop
@@ -60,6 +61,7 @@
 * Updated the README with examples
 
 ### 0.6.0
+
 * Renamed $HADUPILS_BASE_TMP_PATH to $HADUPILS_TMP_PATH (less typing)
 * Introduced $HADUPILS_TMP_TTL for use with command: cleanup
 * Introduced Hadupils::Commands::Cleanup to identify and remove old hadupils tmp DFS
@@ -69,3 +71,10 @@
 * Fixed 1.8.7 compatibility bug with the Kernel.system call in
   Hadupils::Extensions::Hive::AuxJarsPath.build_archive
 * Some refactoring
+
+### 0.6.1
+
+* Fixed weird bug in Hadupils::Extensions::Hive.build_archive; the call
+  was hanging reading from stderr, which isn't strictly necessary anyway.
+  Now it no hangy.
+
