@@ -78,3 +78,6 @@
   was hanging reading from stderr, which isn't strictly necessary anyway.
   Now it no hangy.
 
+### 0.6.2
+* Stopped the hadupils cleanup command from outputting 'Removing...' to STDOUT when it
+  doesn't have anything to actually remove.

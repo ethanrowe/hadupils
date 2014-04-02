@@ -234,7 +234,7 @@ module Hadupils::Commands
             # Now want the user to see the Runner's shell STDOUT
             Shell.silence_stdout = false
 
-            puts 'Removing...'
+            puts 'Removing...' unless rm_array.empty?
             rm_array.each do |dir|
               rm_stdout, rm_exitstatus = Hadupils::Commands::RmFile.run ['-r', dir]
               rm_exitstatuses << rm_exitstatus
