@@ -7,22 +7,19 @@ module Hadupils::Extensions
   module Runners
     module Shell
       def self.command(*command_list)
-        opts      = {}
-        stdout    = nil
-        stderr    = nil
-        status    = nil
+        opts = {}
 
         begin
           if RUBY_VERSION < '1.9'
             Open3.popen3(*command_list) do |i, o, e|
-              stdout = o.read
-              stderr = e.read
+              @stdout = o.read
+              @stderr = e.read
             end
-            status = $?
-            $stdout.puts stdout unless stdout.nil? || stdout.empty? || Shell.silence_stdout?
-            $stderr.puts stderr unless stderr.nil? || stderr.empty?
-            stdout = nil unless capture_stdout?
-            stderr = nil unless capture_stderr?
+            @status = $?
+            $stdout.puts @stdout unless @stdout.nil? || @stdout.empty? || Shell.silence_stdout?
+            $stderr.puts @stderr unless @stderr.nil? || @stderr.empty?
+            @stdout = nil unless capture_stdout?
+            @stderr = nil unless capture_stderr?
           else
             stdout_rd, stdout_wr  = IO.pipe     if capture_stdout?
             stderr_rd, stderr_wr  = IO.pipe     if capture_stderr?
@@ -30,25 +27,38 @@ module Hadupils::Extensions
             opts[:err]            = stderr_wr   if capture_stderr?
 
             # NOTE: eval prevents Ruby 1.8.7 from throwing a syntax error on Ruby 1.9+ syntax
-            result = eval 'Kernel.system(*command_list, opts)'
-            status = result ? $? : nil
-            if capture_stdout?
-              stdout_wr.close
-              stdout = stdout_rd.read
-              stdout_rd.close
-              $stdout.puts stdout unless stdout.nil? || stdout.empty? || Shell.silence_stdout?
+            pid = eval 'Process.spawn(*command_list, opts)'
+            @status = :waiting unless pid.nil?
+
+            Thread.new do
+              Process.wait pid
+              @status = $?
             end
-            if capture_stderr?
-              stderr_wr.close
-              stderr = stderr_rd.read
-              stderr_rd.close
-              $stderr.puts stderr unless stderr.nil? || stderr.empty?
+
+            Thread.new do
+              if capture_stdout?
+                stdout_wr.close
+                @stdout = stdout_rd.read
+                stdout_rd.close
+                $stdout.puts @stdout unless @stdout.nil? || @stdout.empty? || Shell.silence_stdout?
+              end
             end
+
+            Thread.new do
+              if capture_stderr?
+                stderr_wr.close
+                @stderr = stderr_rd.read
+                stderr_rd.close
+                $stderr.puts @stderr unless @stderr.nil? || @stderr.empty?
+              end
+            end
+            sleep 0.1 while @status == :waiting
           end
-          [stdout, stderr, status]
+
+          [@stdout, @stderr, @status]
         rescue Errno::ENOENT => e
           $stderr.puts e
-          [stdout, stderr, nil]
+          [@stdout, @stderr, nil]
         end
       end
 
@@ -86,7 +96,7 @@ module Hadupils::Extensions
       end
 
       def self.tmp_ttl
-        @tmp_ttl ||= (ENV['HADUPILS_TMP_TTL'] || '86400').to_i
+        @tmp_ttl ||= (ENV['HADUPILS_TMP_TTL'] || '1209600').to_i
       end
 
       def self.tmp_path
@@ -174,7 +184,7 @@ module Hadupils::Extensions
         @file_handler || ::Tempfile
       end
 
-      # Sets up a wrapped file, using the class' file_handler, 
+      # Sets up a wrapped file, using the class' file_handler,
       def initialize
         @file = self.class.file_handler.new('hadupils-hiverc')
       end

@@ -292,7 +292,7 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
         end
 
         should 'produce a valid set of parameters and hivercs' do
-          Kernel.stubs(:system).with() do |*args|
+          Process.stubs(:spawn).with() do |*args|
             args[0] == {'HIVE_AUX_JARS_PATH' => @hive_aux_jars_path_val} &&
             args[1] == @hive_prog &&
             args[2] == '-i' &&
@@ -464,7 +464,7 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
        run_common_cleanup_assertions_with(tmp_path, tmpdir1, tmpdir2)
        instance = @klass.new([])
        assert_equal [nil, 0], instance.run
-       assert_equal 86400, instance.tmp_ttl
+       assert_equal 1209600, instance.tmp_ttl
        assert_equal '/tmp', instance.tmp_path
      end
 
@@ -476,7 +476,7 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
        run_common_cleanup_assertions_with(tmp_path, tmpdir1, tmpdir2)
        instance = @klass.new([tmp_path])
        assert_equal [nil, 0], instance.run
-       assert_equal 86400, instance.tmp_ttl
+       assert_equal 1209600, instance.tmp_ttl
        assert_equal tmp_path, instance.tmp_path
      end
 
@@ -504,8 +504,8 @@ class Hadupils::CommandsTest < Test::Unit::TestCase
   def run_common_cleanup_assertions_with(tmp_path, tmpdir1, tmpdir2)
     ls_stdout =
       "Found 2 items\n" +
-      "drwx------   - willdrew supergroup          0 2013-10-24 16:23 #{tmpdir1}\n" +
-      "drwx------   - willdrew supergroup          0 2013-10-24 16:23 #{tmpdir2}\n"
+      "drwx------   - someuser somegroup          0 2013-10-24 16:23 #{tmpdir1}\n" +
+      "drwx------   - someuser somegroup          0 2013-10-24 16:23 #{tmpdir2}\n"
     count_stdout1 = "           1            0                  0 hdfs://localhost:9000#{tmpdir1}\n"
     count_stdout2 = "           1            1                  0 hdfs://localhost:9000#{tmpdir2}\n"
     Hadupils::Runners::Hadoop.expects(:run).with(['fs', '-ls', tmp_path]).returns([ls_stdout, 0])

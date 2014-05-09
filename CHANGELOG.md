@@ -81,3 +81,10 @@
 ### 0.6.2
 * Stopped the hadupils cleanup command from outputting 'Removing...' to STDOUT when it
   doesn't have anything to actually remove.
+
+### 0.7.0
+* Now using Process.spawn instead of Kernel.system, the ruby way for 1.9+
+* Fixed subcommand process deadlocking when any IO pipe buffer became full (Ruby 1.9+) via
+  threads and process waiting, the ruby way or a ruby way at least ;)
+* $HADUPILS_TMP_TTL now defaults to 1209600 (last 2 weeks)
+* Passing unit tests
