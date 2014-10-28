@@ -88,3 +88,8 @@
   threads and process waiting, the ruby way or a ruby way at least ;)
 * $HADUPILS_TMP_TTL now defaults to 1209600 (last 2 weeks)
 * Passing unit tests
+
+### 0.7.1
+* Cleanup command now outputs additional context, candidate tmpdir, to help identify the
+  runtime state for long running cleanups
+* Now ignoring the 'vendor' directory in .gitignore

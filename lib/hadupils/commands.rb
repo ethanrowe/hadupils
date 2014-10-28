@@ -248,6 +248,7 @@ module Hadupils::Commands
     end
 
     def has_expired?(dir_candidate, ttl)
+      puts "Checking directory candidate: #{dir_candidate}"
       stdout, exitstatus = Hadupils::Commands::Hadoop.run ['fs', '-count', dir_candidate]
       expired_exitstatuses << exitstatus
       if successful? exitstatus
