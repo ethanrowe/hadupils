@@ -1,10 +1,10 @@
 require 'rake'
 Gem::Specification.new do |s|
   s.name        = 'hadupils'
-  s.version     = '0.6.1'
+  s.version     = '0.7.2'
   s.email       = 'ethan@the-rowes.com'
   s.author      = 'Ethan Rowe'
-  s.date        = '2013-10-28'
+  s.date        = '2014-11-14'
   s.platform    = Gem::Platform::RUBY
   s.description = 'Provides utilities for dynamic hadoop client environment configuration'
   s.summary     = s.description
@@ -16,7 +16,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency('uuid', '~> 2.3.0')
 
-  s.add_development_dependency('bundler', '~> 1.3.5')
+  s.add_development_dependency('bundler', '~> 1.6.2')
   s.add_development_dependency('mocha')
   s.add_development_dependency('rake', '~> 10.1.0')
   s.add_development_dependency('shoulda-context')
