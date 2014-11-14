@@ -93,3 +93,6 @@
 * Cleanup command now outputs additional context, candidate tmpdir, to help identify the
   runtime state for long running cleanups
 * Now ignoring the 'vendor' directory in .gitignore
+
+### 0.7.2
+* $HADUPILS_TMP_TTL default reverts back to 86400 (last 24 hours)

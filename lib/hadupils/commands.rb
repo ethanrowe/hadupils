@@ -210,7 +210,7 @@ module Hadupils::Commands
 
     def run
       # Removes old hadupils tmp files/dirs where all files within a tmpdir are also older than the TTL
-      # User configurable by setting the ENV variable $HADUPILS_TMP_TTL, defaults to 1209600 (last 2 weeks)
+      # User configurable by setting the ENV variable $HADUPILS_TMP_TTL, defaults to 86400 (last 24 hours)
       # User may also perform a dry-run via a -n or a --dry-run flag
 
       # Silence the Runner's shell STDOUT noise

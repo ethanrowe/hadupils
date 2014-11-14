@@ -17,7 +17,7 @@ Operating environment oriented utilities for hadoop (Hadoop + Utils => hadupils)
     * It will cleanup (remove) the directory if the subcommand returns an exitstatus of zero
 - $HADUPILS_TMP_TTL
     * This is the Time-To-Live for hadupils DFS temporary files/directories (hadupils-tmp*)
-    * Defaults to '1209600' (2 weeks)
+    * Defaults to '86400' (24 hours)
     * Command 'cleanup' will use this ENV var to remove any /hadupils-tmp*/ tmpdirs within
       $HADUPILS_TMP_PATH where all files within are older than TTL, (Time.now.utc - $HADUPILS_TMP_TTL)
       if ttl isn't set through the command line
